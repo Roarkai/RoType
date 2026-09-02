@@ -239,6 +239,14 @@ final class SquirrelInputController: IMKInputController {
     wiki.target = self
     let update = NSMenuItem(title: NSLocalizedString("Check for updates...", comment: "Menu item"), action: #selector(checkForUpdates), keyEquivalent: "")
     update.target = self
+    let roTypeTitle = NSMenuItem(title: "RoType", action: nil, keyEquivalent: "")
+    roTypeTitle.isEnabled = false
+    let roTypeVoiceHint = NSMenuItem(title: "按住右 Option 进行语音输入", action: nil, keyEquivalent: "")
+    roTypeVoiceHint.isEnabled = false
+    let roTypeSettings = NSMenuItem(title: "翻译与语音设置…", action: #selector(openRoTypeSettings), keyEquivalent: "")
+    roTypeSettings.target = self
+    let roTypeProject = NSMenuItem(title: "RoType 项目主页…", action: #selector(openRoTypeProject), keyEquivalent: "")
+    roTypeProject.target = self
 
     let menu = NSMenu()
     menu.addItem(deploy)
@@ -247,6 +255,11 @@ final class SquirrelInputController: IMKInputController {
     menu.addItem(setting)
     menu.addItem(wiki)
     menu.addItem(update)
+    menu.addItem(.separator())
+    menu.addItem(roTypeTitle)
+    menu.addItem(roTypeVoiceHint)
+    menu.addItem(roTypeSettings)
+    menu.addItem(roTypeProject)
 
     return menu
   }
@@ -273,6 +286,16 @@ final class SquirrelInputController: IMKInputController {
 
   @objc func openWiki() {
     NSApp.squirrelAppDelegate.openWiki()
+  }
+
+  @objc func openRoTypeSettings() {
+    guard let url = URL(string: "rotype://settings") else { return }
+    NSWorkspace.shared.open(url)
+  }
+
+  @objc func openRoTypeProject() {
+    guard let url = URL(string: "https://github.com/Roarkai/RoType") else { return }
+    NSWorkspace.shared.open(url)
   }
 
   deinit {

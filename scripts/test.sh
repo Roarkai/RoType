@@ -8,6 +8,8 @@ luajit Tests/RimeIntegration/bilingual_translator_test.lua
 luajit Tests/RimeIntegration/dynamic_bilingual_filter_test.lua
 luajit Tests/RimeIntegration/simplified_only_filter_test.lua
 
+"$repo_dir/scripts/test-squirrel-integration.sh"
+
 for schema in Rime/rotype.schema.yaml Rime/rotype_flypy.schema.yaml; do
   ! grep -Eq 'traditionalization|s2t\.json|繁體|繁体' "$schema"
   grep -q 'simplifier@simplification' "$schema"
