@@ -1,0 +1,20 @@
+#!/bin/bash
+set -euo pipefail
+
+backup_root="/Library/Application Support/RoType/Backups"
+backup_dir="$backup_root/$(/bin/date +%Y%m%d-%H%M%S)"
+/bin/mkdir -p "$backup_dir"
+
+backup_app() {
+  local source="$1"
+  local name="$2"
+  if [[ -d "$source" ]]; then
+    /usr/bin/ditto --norsrc "$source" "$backup_dir/$name"
+  fi
+}
+
+backup_app "/Library/Input Methods/Squirrel.app" "Squirrel.app"
+backup_app "/Applications/RoType Voice.app" "RoType Voice.app"
+
+echo "$backup_dir" > "$backup_root/last-backup.txt"
+echo "RoType pre-install backup: $backup_dir"

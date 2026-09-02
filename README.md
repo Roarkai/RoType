@@ -49,6 +49,18 @@ open "dist/RoType Voice.app"
 
 首次启动需要允许麦克风、输入监控和辅助功能权限。辅助功能同时用于在异步翻译完成后发送一个只由 RoType 消费的候选刷新事件。打开任意普通文本编辑框，按住右 Option 说话，松开后等待文字插入。
 
+## 构建本地测试安装包
+
+先使用 Squirrel 官方锁定的通用二进制依赖构建 Release 版本，再生成包含输入法、语音后台服务、双语配置和登录自启服务的统一安装包：
+
+```sh
+SQUIRREL_BUNDLED_RECIPES=:preset bash Squirrel/action-install.sh
+make -C Squirrel release
+./scripts/build-installer.sh
+```
+
+生成的 `dist/RoType-0.2.0-macOS-arm64.pkg` 仅用于本机测试。对外发布前仍需使用 Developer ID Application / Installer 证书签名并通过 Apple 公证。
+
 ## 测试
 
 ```sh
@@ -68,7 +80,7 @@ ROTYPE_SQUIRREL_APP="/path/to/Squirrel.app" ./scripts/test-rime-deploy.sh
 - macOS 14–15 的 CTranslate2 + OPUS-MT 本地翻译兜底
 - 小鹤以外的其他双拼方案
 - LLM 润色和云服务
-- Squirrel 分叉、公证和正式发布
+- Developer ID 签名、Apple 公证和正式发布
 
 ## 许可证
 

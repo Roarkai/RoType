@@ -1,0 +1,79 @@
+#!/bin/bash
+set -euo pipefail
+
+console_user=$(/usr/bin/stat -f '%Su' /dev/console)
+if [[ -z "$console_user" || "$console_user" == "root" || "$console_user" == "loginwindow" ]]; then
+  echo "RoType: no logged-in desktop user found; skipping per-user setup."
+  exit 0
+fi
+
+console_uid=$(/usr/bin/id -u "$console_user")
+user_home=$(/usr/bin/dscl . -read "/Users/$console_user" NFSHomeDirectory | /usr/bin/awk '{print $2}')
+rime_dir="$user_home/Library/Rime"
+source_dir="/Library/Application Support/RoType/Rime"
+backup_root="$rime_dir/rotype-backups"
+backup_dir="$backup_root/$(/bin/date +%Y%m%d-%H%M%S)"
+
+/bin/mkdir -p "$rime_dir/lua" "$backup_dir" "$user_home/Library/Caches/RoType/TranslationBridge"
+
+copy_with_backup() {
+  local relative_path="$1"
+  local destination="$rime_dir/$relative_path"
+  local backup="$backup_dir/$relative_path"
+
+  if [[ -f "$destination" ]]; then
+    /bin/mkdir -p "$(/usr/bin/dirname "$backup")"
+    /bin/cp -p "$destination" "$backup"
+  fi
+  /bin/mkdir -p "$(/usr/bin/dirname "$destination")"
+  /bin/cp "$source_dir/$relative_path" "$destination"
+}
+
+for file in \
+  rotype.schema.yaml \
+  rotype_flypy.schema.yaml \
+  rotype_en.schema.yaml \
+  rotype_zh.dict.yaml \
+  rotype_en.dict.yaml \
+  lua/rotype_bilingual_translator.lua \
+  lua/rotype_dynamic_bilingual_filter.lua \
+  lua/rotype_dynamic_refresh.lua \
+  lua/rotype_english_echo.lua \
+  lua/rotype_simplified_only_filter.lua
+do
+  copy_with_backup "$file"
+done
+
+if [[ ! -f "$rime_dir/default.custom.yaml" ]]; then
+  /bin/cp "$source_dir/default.custom.yaml" "$rime_dir/default.custom.yaml"
+fi
+
+/usr/sbin/chown -R "$console_user":staff "$rime_dir" "$user_home/Library/Caches/RoType"
+
+squirrel_app="/Library/Input Methods/Squirrel.app"
+squirrel_executable="$squirrel_app/Contents/MacOS/Squirrel"
+voice_app="/Applications/RoType Voice.app"
+voice_service="dev.rotype.voice"
+voice_agent="/Library/LaunchAgents/$voice_service.plist"
+legacy_voice_app="$user_home/Applications/RoType Voice.app"
+
+if [[ -d "$legacy_voice_app" ]]; then
+  legacy_bundle_id=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$legacy_voice_app/Contents/Info.plist" 2>/dev/null || true)
+  if [[ "$legacy_bundle_id" == "dev.rotype.voice" ]]; then
+    legacy_backup="/Library/Application Support/RoType/Backups/legacy-voice-$(/bin/date +%Y%m%d-%H%M%S).app"
+    /bin/mv "$legacy_voice_app" "$legacy_backup"
+  fi
+fi
+
+/usr/bin/killall Squirrel >/dev/null 2>&1 || true
+/usr/bin/killall RoTypeVoice >/dev/null 2>&1 || true
+"$squirrel_executable" --register-input-source
+
+/bin/launchctl bootout "gui/$console_uid/$voice_service" >/dev/null 2>&1 || true
+/bin/launchctl bootstrap "gui/$console_uid" "$voice_agent" || true
+/bin/launchctl enable "gui/$console_uid/$voice_service" || true
+/bin/launchctl kickstart -k "gui/$console_uid/$voice_service" || true
+/bin/launchctl asuser "$console_uid" /usr/bin/sudo -u "$console_user" "$squirrel_executable" --enable-input-source || true
+/bin/launchctl asuser "$console_uid" /usr/bin/sudo -u "$console_user" "$squirrel_executable" --select-input-source || true
+
+echo "RoType installed. Existing RoType Rime files were backed up to: $backup_dir"
