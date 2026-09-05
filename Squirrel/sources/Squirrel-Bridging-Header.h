@@ -5,3 +5,4 @@
 
 #import <rime_api_stdbool.h>
 #import <rime/key_table.h>
+#import "../../Shared/RoTypeXPCProtocol/include/RoTypeTranslationXPCProtocol.h"

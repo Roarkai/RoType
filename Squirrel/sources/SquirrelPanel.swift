@@ -10,6 +10,7 @@ import AppKit
 final class SquirrelPanel: NSPanel {
   private let view: SquirrelView
   private let back: NSVisualEffectView
+  private let translationPanel = RoTypeTranslationPanel()
   var inputController: SquirrelInputController?
 
   var position: NSRect
@@ -54,9 +55,35 @@ final class SquirrelPanel: NSPanel {
     self.contentView = contentView
   }
 
-  var linear: Bool {
-    view.currentTheme.linear
+  // Render the production panel without registering an IMK server, opening a
+  // user's Rime directory, or taking keyboard focus. Exits automatically.
+  static func preview(configurationPath: String, dark: Bool) {
+    let app = NSApplication.shared
+    app.setActivationPolicy(.accessory)
+    app.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
+    let config = SquirrelConfig()
+    guard let yaml = try? String(contentsOfFile: configurationPath, encoding: .utf8),
+          config.load(yaml: yaml), let screen = NSScreen.main else { return }
+    let panel = SquirrelPanel(position: NSRect(x: screen.frame.midX - 260, y: screen.frame.maxY - 260,
+                                             width: 1, height: 20))
+    panel.load(config: config, forDarkMode: false)
+    panel.load(config: config, forDarkMode: true)
+    let candidates = ["点", "·", "店", "电", "垫"]
+    panel.update(preedit: "", selRange: .empty, caretPos: 0, candidates: candidates,
+                 comments: Array(repeating: "", count: candidates.count), labels: (1...candidates.count).map(String.init),
+                 highlighted: 0, page: 0, lastPage: false, update: true)
+    var state = RoTypeCandidateTranslationSession()
+    let request = state.observe(.init(rawInput: "dian", source: "点", identity: "0:4:0", scope: "whole"))!
+    state.receive("Point", for: request, direction: "zh-en")
+    panel.updateTranslation(state)
+    let bounds = panel.frame.union(panel.translationPanel.frame).insetBy(dx: -12, dy: -12)
+    print("preview bounds: \(Int(bounds.minX)),\(Int(screen.frame.maxY - bounds.maxY)),\(Int(bounds.width)),\(Int(bounds.height))")
+    fflush(stdout)
+    DispatchQueue.main.asyncAfter(deadline: .now() + 12) { panel.hide(); Foundation.exit(EXIT_SUCCESS) }
+    app.run()
   }
+
+  var linear: Bool { view.currentTheme.linear }
   var vertical: Bool {
     view.currentTheme.vertical
   }
@@ -109,7 +136,7 @@ final class SquirrelPanel: NSPanel {
     case .mouseMoved:
       let (index, _, _) = view.click(at: mousePosition())
       if let index = index, cursorIndex != index && index >= 0 && index < candidates.count {
-        update(preedit: preedit, selRange: selRange, caretPos: caretPos, candidates: candidates, comments: comments, labels: labels, highlighted: index, page: page, lastPage: lastPage, update: false)
+        inputController?.highlightCandidate(index)
       }
     case .scrollWheel:
       if event.phase == .began {
@@ -147,7 +174,13 @@ final class SquirrelPanel: NSPanel {
     super.sendEvent(event)
   }
 
+  func updateTranslation(_ state: RoTypeCandidateTranslationSession) {
+    translationPanel.onActivate = { [weak self] in self?.inputController?.performTranslationAction() }
+    translationPanel.show(state, beside: self)
+  }
+
   func hide() {
+    translationPanel.orderOut(nil)
     statusTimer?.invalidate()
     statusTimer = nil
     orderOut(nil)

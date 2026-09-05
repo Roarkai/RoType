@@ -7,13 +7,13 @@
 
 schema:
   schema_id: rotype_flypy
-  name: RoType 小鹤双拼
+  name: 洛克输入法（小鹤双拼）
   version: "0.3.0"
   author:
     - double pinyin layout by 鹤
     - Rime schema by 佛振
     - adapted for RoType by RoType contributors
-  description: 小鹤双拼中文候选、英文原词及双向翻译作为独立候选。
+  description: 小鹤双拼与英文原词候选；双向翻译显示在独立操作栏。
   dependencies:
     - rotype_en
 
@@ -29,13 +29,13 @@ switches:
     states: [半角, 全角]
 
 menu:
-  page_size: 9
+  page_size: 5
 
 engine:
   processors:
     - ascii_composer
     - recognizer
-    - lua_processor@*rotype_dynamic_refresh
+    - lua_processor@*rotype_candidate_session
     - key_binder
     - speller
     - punctuator
@@ -53,12 +53,12 @@ engine:
     - script_translator
     - table_translator@english
     - lua_translator@*rotype_english_echo
-    - lua_translator@*rotype_bilingual_translator
   filters:
-    - lua_filter@*rotype_dynamic_bilingual_filter
     - simplifier@simplification
     - lua_filter@*rotype_simplified_only_filter
     - uniquifier
+    # Order visible candidates after simplification and deduplication.
+    - lua_filter@*rotype_candidate_filter
 
 speller:
   alphabet: zyxwvutsrqponmlkjihgfedcba

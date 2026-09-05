@@ -7,7 +7,7 @@ squirrel_executable="${squirrel_app_root}/Contents/MacOS/Squirrel"
 rime_package_installer="${squirrel_app_root}/Contents/MacOS/rime-install"
 rime_shared_data_path="${squirrel_app_root}/Contents/SharedSupport"
 
-/usr/bin/sudo -u "${login_user}" /usr/bin/killall Squirrel > /dev/null || true
+/bin/launchctl asuser "$(/usr/bin/id -u "${login_user}")" /usr/bin/sudo -Hu "${login_user}" "${squirrel_executable}" --quit > /dev/null || true
 
 "${squirrel_executable}" --register-input-source
 

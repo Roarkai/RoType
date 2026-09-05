@@ -2,6 +2,10 @@
 
 更新日期：2026-09-01
 
+> 历史调研，不是当前实现规范。活动路径现为独立译文栏与 v2 XPC，旧响应文件/F18/编号译文已清退。参见 [候选合约](candidate-translation-contract.md) 与 [兼容说明](legacy-translation-retirement.md)。
+
+> 实施更新（0.2.25）：Phase 2 已采用 Squirrel 薄适配层完成，而非单独的 native librime plugin。Lua 通过 session property 提供候选语义，Squirrel 使用按签名角色授权的 Mach XPC 与独立 Translation worker 通信，并在所属 controller 内刷新 composition。请求具备随机 session token、单调 generation、取消、超时和重连；Secure Input 启用时不请求翻译或写入缓存；响应文件权限为 `0600`，父目录为 `0700`。worker 还记录真实 controller 按键的单调 generation，设置 helper 只能查询该证据，分布式通知只作为无权威性的刷新提示。当前 Apple Translation 实现需要 macOS 26，macOS 14-15 的 CTranslate2 fallback 与持久翻译缓存仍是非目标。
+
 ## 结论
 
 RoType 当前 Lua 实现是一个小型双向词表，只能证明“翻译结果可以作为独立 Rime 候选被选择”，不能满足“任意中文/英文输入都能得到翻译”。要满足该目标，不能继续靠扩充静态词表；需要把 Rime 的候选管线接到一个常驻、异步、带缓存的本地翻译后端。
@@ -215,7 +219,7 @@ WhisperKit 和 whisper.cpp 都适合 RoType Voice 的本地 ASR：WhisperKit 原
 
 - 默认后端只能是 Apple on-device Translation 或本地模型；云翻译必须由用户显式开启并在候选上标识。
 - helper 只监听 XPC 或权限为 0600 的 Unix domain socket，不开放局域网 TCP 端口。
-- 插件请求必须带随机 session/request ID；helper 返回结果时校验调用者、方向、源文本哈希和 generation。
+- 每个请求必须带随机 session ID 和单调 generation；worker 按代码签名角色授权操作，返回结果时由 controller 校验方向、exact source、composition 和 generation。
 - SQLite 缓存默认可关闭、可一键清空，并设置容量/TTL；密码框和 secure input 场景完全禁用翻译与持久缓存。
 - 模型下载固定 URL、版本、SHA-256 和许可证；禁止运行模型仓库里的任意 remote code。
 - 使用 Apple Translation 时，隐私说明应准确写明：内容在设备处理；Apple 可能收集不含原文/译文的 API 使用和性能元数据，而不是宣称“绝对无任何数据”。

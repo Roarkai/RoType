@@ -15,6 +15,16 @@ final class SquirrelConfig {
   private var config: RimeConfig = .init()
   private var baseConfig: SquirrelConfig?
 
+  // Isolated rendering tests can load the factory theme without a user session.
+  func load(yaml: String) -> Bool {
+    close()
+    cache.removeAll()
+    isOpen = rimeAPI.config_init(&config)
+    guard isOpen else { return false }
+    guard rimeAPI.config_load_string(&config, yaml) else { close(); return false }
+    return true
+  }
+
   func openBaseConfig() -> Bool {
     close()
     isOpen = rimeAPI.config_open("squirrel", &config)

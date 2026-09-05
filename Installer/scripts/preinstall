@@ -1,8 +1,10 @@
 #!/bin/bash
 set -euo pipefail
 
-backup_root="/Library/Application Support/RoType/Backups"
-backup_dir="$backup_root/$(/bin/date +%Y%m%d-%H%M%S)"
+input_methods_dir="${ROTYPE_INPUT_METHODS_DIR:-/Library/Input Methods}"
+applications_dir="${ROTYPE_APPLICATIONS_DIR:-/Applications}"
+backup_root="${ROTYPE_BACKUP_ROOT:-/Library/Application Support/RoType/Backups}"
+backup_dir="$backup_root/$(/bin/date +%Y%m%d-%H%M%S)-$$"
 /bin/mkdir -p "$backup_dir"
 
 backup_app() {
@@ -13,8 +15,153 @@ backup_app() {
   fi
 }
 
-backup_app "/Library/Input Methods/Squirrel.app" "Squirrel.app"
-backup_app "/Applications/RoType Voice.app" "RoType Voice.app"
+active_gui_uids() {
+  if [[ -n "${ROTYPE_ACTIVE_GUI_UIDS:-}" ]]; then
+    /usr/bin/printf '%s\n' "$ROTYPE_ACTIVE_GUI_UIDS"
+    return
+  fi
+  /bin/ps -axo uid=,command= | /usr/bin/awk \
+    '$1 >= 500 && $2 == "/System/Library/CoreServices/loginwindow.app/Contents/MacOS/loginwindow" { print $1 }' | \
+    /usr/bin/sort -nu
+}
 
-echo "$backup_dir" > "$backup_root/last-backup.txt"
-echo "RoType pre-install backup: $backup_dir"
+run_input_method_command_for_active_users() {
+  local executable="$1"
+  local command="$2"
+  [[ -x "$executable" ]] || return 0
+  while IFS= read -r uid; do
+    [[ -n "$uid" ]] || continue
+    local user
+    user=$(/usr/bin/id -nu "$uid" 2>/dev/null || true)
+    [[ -n "$user" ]] || continue
+    if [[ "${ROTYPE_DIRECT_USER_COMMANDS:-0}" == "1" ]]; then
+      "$executable" "$command" >/dev/null 2>&1 &
+    else
+      /bin/launchctl asuser "$uid" /usr/bin/sudo -Hu "$user" "$executable" "$command" >/dev/null 2>&1 &
+    fi
+    local command_pid=$!
+    local attempt
+    local timeout_attempts="${ROTYPE_QUIT_TIMEOUT_ATTEMPTS:-60}"
+    for ((attempt = 0; attempt < timeout_attempts; attempt++)); do
+      if ! jobs -pr | /usr/bin/grep -qx "$command_pid"; then
+        wait "$command_pid" 2>/dev/null || true
+        command_pid=""
+        break
+      fi
+      /bin/sleep 0.05
+    done
+    if [[ -n "$command_pid" ]] && jobs -pr | /usr/bin/grep -qx "$command_pid"; then
+      /usr/bin/pkill -TERM -P "$command_pid" >/dev/null 2>&1 || true
+      /bin/kill -TERM "$command_pid" >/dev/null 2>&1 || true
+      /bin/sleep 0.1
+      /usr/bin/pkill -KILL -P "$command_pid" >/dev/null 2>&1 || true
+      /bin/kill -KILL "$command_pid" >/dev/null 2>&1 || true
+      wait "$command_pid" 2>/dev/null || true
+    fi
+  done < <(active_gui_uids)
+}
+
+backup_app "$input_methods_dir/洛克输入法.app" "洛克输入法-输入源.app"
+for relocated_root in "$input_methods_dir"/洛克输入法*.localized; do
+  [[ -d "$relocated_root" ]] || continue
+  backup_app "$relocated_root/洛克输入法.app" "$(/usr/bin/basename "$relocated_root")-输入源.app"
+done
+backup_app "$applications_dir/RoType Voice.app" "RoType Voice.app"
+backup_app "$applications_dir/洛克输入法.app" "洛克输入法.app"
+backup_app "$applications_dir/洛克语音输入.app" "洛克语音输入.app"
+
+# Keep bounded rollback coverage without accumulating a full app copy forever.
+backup_index=0
+while IFS= read -r old_backup; do
+  [[ -n "$old_backup" ]] || continue
+  backup_index=$((backup_index + 1))
+  if (( backup_index > 3 )); then
+    /bin/rm -R "$old_backup"
+  fi
+done < <(/usr/bin/find "$backup_root" -mindepth 1 -maxdepth 1 -type d -name '20??????-??????*' -print | /usr/bin/sort -r)
+
+legacy_standalone_app="$applications_dir/洛克输入法.app"
+if [[ -d "$legacy_standalone_app" ]]; then
+  legacy_standalone_bundle_id=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$legacy_standalone_app/Contents/Info.plist" 2>/dev/null || true)
+  if [[ "$legacy_standalone_bundle_id" == "dev.rotype.voice" ]]; then
+    run_input_method_command_for_active_users "$legacy_standalone_app/Contents/MacOS/LuokeInput" --quit
+    /bin/rm -R "$legacy_standalone_app"
+  fi
+fi
+
+# Retire the previously shipped voice product, never its models or history.
+new_voice_app="$applications_dir/洛克语音输入.app"
+if [[ -d "$new_voice_app" ]]; then
+  if /usr/bin/codesign --verify --deep --strict \
+    -R '=anchor apple generic and identifier "im.roarkai.inputmethod.Luoke.voice" and certificate leaf[subject.OU] = "DF7J2VBQD8"' \
+    "$new_voice_app" >/dev/null 2>&1; then
+    retirement_tool="$(/usr/bin/dirname "$0")/retire-voice"
+    if [[ ! -x "$retirement_tool" ]] || ! "$retirement_tool" --app "$new_voice_app"; then
+      echo "RoType: voice retirement incomplete; preserving app and stopping installation." >&2
+      exit 1
+    fi
+    /bin/rm -R "$new_voice_app"
+  else
+    echo "RoType: voice app signature could not be verified; preserving app and processes." >&2
+  fi
+fi
+
+# Only disrupt input sessions after voice retirement has succeeded. A blocked
+# retirement must leave the currently installed translation service available.
+# Direct commands run fixture executables, never real GUI-domain operations.
+if [[ "${ROTYPE_SKIP_SESSION_OPERATIONS:-0}" != "1" \
+  && "${ROTYPE_DIRECT_USER_COMMANDS:-0}" != "1" ]]; then
+  while IFS= read -r uid; do
+    [[ -n "$uid" ]] || continue
+    /bin/launchctl bootout "gui/$uid/dev.rotype.voice" >/dev/null 2>&1 || true
+    /bin/launchctl bootout "gui/$uid/im.roarkai.inputmethod.Luoke.helper" >/dev/null 2>&1 || true
+    /bin/launchctl bootout "gui/$uid/im.roarkai.inputmethod.Luoke.translation" >/dev/null 2>&1 || true
+  done < <(active_gui_uids)
+  run_input_method_command_for_active_users "$input_methods_dir/洛克输入法.app/Contents/Helpers/洛克输入法设置.app/Contents/MacOS/LuokeInput" --quit
+fi
+
+# Remove only the notarized Qwen Scribe prototype previously shipped by RoType.
+# Preserve independently signed upstream installations and all user model data.
+qwen_prototype="$applications_dir/Qwen Scribe.app"
+if [[ -d "$qwen_prototype" ]]; then
+  qwen_signature=$(/usr/bin/codesign -dv --verbose=4 "$qwen_prototype" 2>&1 || true)
+  if [[ "$qwen_signature" == *"Identifier=io.github.vladuzh.qwenscribe"* \
+    && "$qwen_signature" == *"TeamIdentifier=DF7J2VBQD8"* ]]; then
+    /bin/rm -R "$qwen_prototype"
+  fi
+fi
+
+installed_rotype_app="$input_methods_dir/洛克输入法.app"
+legacy_rotype_bundle_id="com.roarkai.rotype.inputmethod"
+if [[ -d "$installed_rotype_app" ]]; then
+  installed_rotype_bundle_id=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$installed_rotype_app/Contents/Info.plist" 2>/dev/null || true)
+  if [[ "$installed_rotype_bundle_id" == "im.roarkai.inputmethod.Luoke" ]]; then
+    # Stop the signed runtime without disabling the user's configured source.
+    # Reinstallation must not erase enablement or force another input choice.
+    run_input_method_command_for_active_users "$installed_rotype_app/Contents/MacOS/Squirrel" --quit
+  elif [[ "$installed_rotype_bundle_id" == "$legacy_rotype_bundle_id" ]]; then
+    run_input_method_command_for_active_users "$installed_rotype_app/Contents/MacOS/Squirrel" --quit
+    /bin/rm -R "$installed_rotype_app"
+  fi
+fi
+
+# PackageKit can leave numbered relocation artifacts from old broken upgrades.
+for relocated_rotype_root in "$input_methods_dir"/洛克输入法*.localized; do
+  [[ -d "$relocated_rotype_root" ]] || continue
+  relocated_rotype_app="$relocated_rotype_root/洛克输入法.app"
+  [[ -d "$relocated_rotype_app" ]] || continue
+  relocated_rotype_bundle_id=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$relocated_rotype_app/Contents/Info.plist" 2>/dev/null || true)
+  if [[ "$relocated_rotype_bundle_id" == "im.roarkai.inputmethod.Luoke" ]]; then
+    run_input_method_command_for_active_users "$relocated_rotype_app/Contents/MacOS/Squirrel" --quit
+    /bin/rm -R "$relocated_rotype_root"
+  fi
+done
+
+# Never modify /Library/Input Methods/Squirrel.app. A genuine upstream install
+# is indistinguishable from an early development package that reused its ID.
+if [[ -z "$(/bin/ls -A "$backup_dir" 2>/dev/null)" ]]; then
+  /bin/rmdir "$backup_dir"
+else
+  echo "$backup_dir" > "$backup_root/last-backup.txt"
+  echo "RoType pre-install backup: $backup_dir"
+fi

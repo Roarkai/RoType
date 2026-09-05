@@ -13,7 +13,6 @@ files=(
 )
 
 mkdir -p "$rime_dir/lua" "$backup_root"
-mkdir -p "$HOME/Library/Caches/RoType/TranslationBridge"
 backup_dir=$(mktemp -d "$backup_root/$(date +%Y%m%d-%H%M%S).XXXXXX")
 for file in $files; do
   if [[ -f "$rime_dir/$file" ]]; then
@@ -23,10 +22,13 @@ for file in $files; do
 done
 
 lua_files=(
+  rotype_candidate_session.lua
+  rotype_candidate_filter.lua
   rotype_bilingual_translator.lua
   rotype_dynamic_bilingual_filter.lua
   rotype_dynamic_refresh.lua
   rotype_english_echo.lua
+  rotype_full_translation_commit.lua
   rotype_simplified_only_filter.lua
 )
 for file in $lua_files; do
@@ -46,4 +48,4 @@ fi
 print "Installed RoType Rime files into: $rime_dir"
 print "Existing RoType files, if any, were copied to: $backup_dir"
 print "$default_config_message"
-print "Choose '重新部署' from Squirrel before testing."
+print "测试前请从洛克输入法菜单选择“重新部署”。"

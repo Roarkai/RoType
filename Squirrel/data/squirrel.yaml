@@ -16,13 +16,14 @@ chord_duration: 0.1  # seconds
 show_notifications_when: appropriate
 
 style:
-  color_scheme: native
+  color_scheme: rotype_light
+  color_scheme_dark: rotype_dark
   # Optional: define both light and dark color schemes to match system appearance
   #color_scheme: solarized_light
   #color_scheme_dark: solarized_dark
 
   # horizontal is Deprecated since 0.36, Squirrel 0.15, removed since 1.0.1
-  candidate_list_layout: stacked  # stacked | linear
+  candidate_list_layout: linear  # stacked | linear
   text_orientation: horizontal  # horizontal | vertical
   inline_preedit: true
   # Whether to embed selected candidate as text in input field
@@ -36,10 +37,10 @@ style:
   # Enable to show small arrows that indicates if paging up/down is possible
   show_paging: false
 
-  corner_radius: 7
-  hilited_corner_radius: 0
-  border_height: -2
-  border_width: -2
+  corner_radius: 10
+  hilited_corner_radius: 7
+  border_height: -5
+  border_width: -5
   # Space between candidates in stacked layout
   line_spacing: 5
   # Space between preedit and candidates in non-inline mode
@@ -53,18 +54,43 @@ style:
   # format using %@ and %c is deprecated since 1.0, Squirrel 1.0
   # %@ is automatically expanded to "[candidate] [comment]"
   # and %c is replaced by "[label]"
-  candidate_format: '[label]. [candidate] [comment]'
+  candidate_format: '[label] [candidate] [comment]'
 
   # adjust the base line of text
   #base_offset: 0
-  font_face: 'Avenir'
+  font_face: 'PingFang SC'
   font_point: 16
-  #label_font_face: 'Avenir'
-  #label_font_point: 12
+  label_font_face: 'PingFang SC'
+  label_font_point: 12
+  comment_font_point: 12
   #comment_font_face: 'Avenir'
   #comment_font_point: 16
 
 preset_color_schemes:
+  rotype_light:
+    name: 洛克 · 明亮
+    color_space: srgb
+    back_color: 0xffffff
+    text_color: 0x363331
+    candidate_text_color: 0x363331
+    label_color: 0x8d8985
+    comment_text_color: 0x8d8985
+    hilited_candidate_back_color: 0xff804e
+    hilited_candidate_text_color: 0xffffff
+    hilited_candidate_label_color: 0xffffff
+    hilited_comment_text_color: 0xf5eee5
+  rotype_dark:
+    name: 洛克 · 深色
+    color_space: srgb
+    back_color: 0x272522
+    text_color: 0xf3f2f1
+    candidate_text_color: 0xf3f2f1
+    label_color: 0xa49e98
+    comment_text_color: 0xa49e98
+    hilited_candidate_back_color: 0xff804e
+    hilited_candidate_text_color: 0xffffff
+    hilited_candidate_label_color: 0xffffff
+    hilited_comment_text_color: 0xf5eee5
   native:
     name: 系統配色
 

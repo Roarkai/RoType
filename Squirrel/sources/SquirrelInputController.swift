@@ -5,6 +5,7 @@
 //  Created by Leo Liu on 5/7/24.
 //
 
+import Carbon
 import InputMethodKit
 
 final class SquirrelInputController: IMKInputController {
@@ -28,6 +29,13 @@ final class SquirrelInputController: IMKInputController {
   private var chordTimer: Timer?
   private var chordDuration: TimeInterval = 0
   private var currentApp: String = ""
+  private var visibleCandidates = [String]()
+  private var visibleComments = [String]()
+  private var visibleLabels = [String]()
+  private let translationClient = RoTypeTranslationClient()
+  private let translationSessionID = UUID().uuidString
+  private var candidateTranslation = RoTypeCandidateTranslationSession()
+  private var lastTranslationError: String?
 
   // swiftlint:disable:next cyclomatic_complexity
   override func handle(_ event: NSEvent!, client sender: Any!) -> Bool {
@@ -98,6 +106,12 @@ final class SquirrelInputController: IMKInputController {
       }
 
       let keyCode = event.keyCode
+      if keyCode == 48, modifiers.isDisjoint(with: [.control, .option, .command, .shift]),
+         candidateTranslation.ticket != nil {
+        if !event.isARepeat { performTranslationAction() }
+        handled = true // Never submit a stale result or move app focus while loading.
+        break
+      }
       var keyChars = event.charactersIgnoringModifiers
       let capitalModifiers = modifiers.isSubset(of: [.shift, .capsLock])
       if let code = keyChars?.first,
@@ -108,6 +122,12 @@ final class SquirrelInputController: IMKInputController {
 
       // translate osx keyevents to rime keyevents
       if let char = keyChars?.first {
+        if modifiers.isDisjoint(with: [.control, .option, .shift]),
+           let candidateIndex = visibleLabels.firstIndex(of: String(char)),
+           commitRoTypeWholeCompositionCandidate(at: candidateIndex) {
+          handled = true
+          break
+        }
         let rimeKeycode = SquirrelKeycode.osxKeycodeToRime(keycode: keyCode, keychar: char,
                                                            shift: modifiers.contains(.shift),
                                                            caps: modifiers.contains(.capsLock))
@@ -122,10 +142,33 @@ final class SquirrelInputController: IMKInputController {
       break
     }
 
+    // Reaching this controller proves the native IMK input path is active,
+    // even when Rime intentionally passes digits or punctuation through.
+    if event.type == .keyDown, !IsSecureEventInputEnabled() {
+      translationClient.recordControllerInput()
+      NSApp.squirrelAppDelegate.inputControllerDidHandleKeyDown(self)
+    }
     return handled
   }
 
+  func highlightCandidate(_ index: Int) {
+    guard session != 0, rimeAPI.highlight_candidate_on_current_page(session, index) else { return }
+    rimeUpdate()
+  }
+
+  func performTranslationAction() {
+    guard let snapshot = translationSnapshot(), snapshot == candidateTranslation.ticket?.snapshot else { return }
+    if let request = candidateTranslation.retry() {
+      sendTranslation(request)
+    } else {
+      commitTranslationSelection()
+    }
+  }
+
   func selectCandidate(_ index: Int) -> Bool {
+    if commitRoTypeWholeCompositionCandidate(at: index) {
+      return true
+    }
     let success = rimeAPI.select_candidate_on_current_page(session, index)
     if success {
       rimeUpdate()
@@ -182,6 +225,7 @@ final class SquirrelInputController: IMKInputController {
       client?.overrideKeyboard(withKeyboardNamed: keyboardLayout)
     }
     preedit = ""
+    NSApp.squirrelAppDelegate.inputControllerDidActivate(self)
   }
 
   override init!(server: IMKServer!, delegate: Any!, client: Any!) {
@@ -193,9 +237,12 @@ final class SquirrelInputController: IMKInputController {
 
   override func deactivateServer(_ sender: Any!) {
     // print("[DEBUG] deactivateServer: \(sender ?? "nil")")
+    cancelDynamicTranslation()
     hidePalettes()
     commitComposition(sender)
+    translationClient.invalidate()
     client = nil
+    NSApp.squirrelAppDelegate.inputControllerDidDeactivate(self)
   }
 
   override func hidePalettes() {
@@ -203,16 +250,7 @@ final class SquirrelInputController: IMKInputController {
     super.hidePalettes()
   }
 
-  /*!
-   @method
-   @abstract   Called when a user action was taken that ends an input session.
-   Typically triggered by the user selecting a new input method
-   or keyboard layout.
-   @discussion When this method is called your controller should send the
-   current input buffer to the client via a call to
-   insertText:replacementRange:.  Additionally, this is the time
-   to clean up if that is necessary.
-   */
+  // End the input session and send its current buffer to the client.
   override func commitComposition(_ sender: Any!) {
     self.client ?= sender as? IMKTextInput
     // print("[DEBUG] commitComposition: \(sender ?? "nil")")
@@ -235,17 +273,9 @@ final class SquirrelInputController: IMKInputController {
     logDir.target = self
     let setting = NSMenuItem(title: NSLocalizedString("Settings...", comment: "Menu item"), action: #selector(openRimeFolder), keyEquivalent: "")
     setting.target = self
-    let wiki = NSMenuItem(title: NSLocalizedString("Rime Wiki...", comment: "Menu item"), action: #selector(openWiki), keyEquivalent: "")
-    wiki.target = self
-    let update = NSMenuItem(title: NSLocalizedString("Check for updates...", comment: "Menu item"), action: #selector(checkForUpdates), keyEquivalent: "")
-    update.target = self
-    let roTypeTitle = NSMenuItem(title: "RoType", action: nil, keyEquivalent: "")
-    roTypeTitle.isEnabled = false
-    let roTypeVoiceHint = NSMenuItem(title: "按住右 Option 进行语音输入", action: nil, keyEquivalent: "")
-    roTypeVoiceHint.isEnabled = false
-    let roTypeSettings = NSMenuItem(title: "翻译与语音设置…", action: #selector(openRoTypeSettings), keyEquivalent: "")
+    let roTypeSettings = NSMenuItem(title: "打开洛克输入法设置…", action: #selector(openRoTypeSettings), keyEquivalent: "")
     roTypeSettings.target = self
-    let roTypeProject = NSMenuItem(title: "RoType 项目主页…", action: #selector(openRoTypeProject), keyEquivalent: "")
+    let roTypeProject = NSMenuItem(title: "洛克输入法项目主页…", action: #selector(openRoTypeProject), keyEquivalent: "")
     roTypeProject.target = self
 
     let menu = NSMenu()
@@ -253,11 +283,7 @@ final class SquirrelInputController: IMKInputController {
     menu.addItem(sync)
     menu.addItem(logDir)
     menu.addItem(setting)
-    menu.addItem(wiki)
-    menu.addItem(update)
     menu.addItem(.separator())
-    menu.addItem(roTypeTitle)
-    menu.addItem(roTypeVoiceHint)
     menu.addItem(roTypeSettings)
     menu.addItem(roTypeProject)
 
@@ -280,17 +306,25 @@ final class SquirrelInputController: IMKInputController {
     NSApp.squirrelAppDelegate.openRimeFolder()
   }
 
-  @objc func checkForUpdates() {
-    NSApp.squirrelAppDelegate.checkForUpdates()
-  }
-
-  @objc func openWiki() {
-    NSApp.squirrelAppDelegate.openWiki()
-  }
-
   @objc func openRoTypeSettings() {
-    guard let url = URL(string: "rotype://settings") else { return }
-    NSWorkspace.shared.open(url)
+    let helperURL = Bundle.main.bundleURL
+      .appendingPathComponent("Contents", isDirectory: true)
+      .appendingPathComponent("Helpers", isDirectory: true)
+      .appendingPathComponent("洛克输入法设置.app", isDirectory: true)
+    let configuration = NSWorkspace.OpenConfiguration()
+    configuration.activates = true
+    configuration.arguments = ["--show-settings"]
+    NSWorkspace.shared.openApplication(at: helperURL, configuration: configuration) { _, error in
+      if let error {
+        NSLog("Failed to open RoType settings helper: \(error.localizedDescription)")
+        return
+      }
+      DistributedNotificationCenter.default().postNotificationName(
+        Notification.Name("im.roarkai.inputmethod.Luoke.show-settings"),
+        object: nil,
+        deliverImmediately: true
+      )
+    }
   }
 
   @objc func openRoTypeProject() {
@@ -299,6 +333,7 @@ final class SquirrelInputController: IMKInputController {
   }
 
   deinit {
+    translationClient.invalidate()
     destroySession()
   }
 }
@@ -367,6 +402,7 @@ private extension SquirrelInputController {
     schemaId = ""
 
     if session != 0 {
+      setTranslationProperty("rotype_translation_presentation", "panel")
       updateAppOptions()
     }
   }
@@ -386,9 +422,12 @@ private extension SquirrelInputController {
   func destroySession() {
     // print("[DEBUG] destroySession:")
     if session != 0 {
+      let sessionID = translationSessionID
+      translationClient.cancel(sessionID: sessionID, throughGeneration: candidateTranslation.ticket?.generation ?? 0)
       _ = rimeAPI.destroy_session(session)
       session = 0
     }
+    candidateTranslation.invalidate()
     clearChord()
   }
 
@@ -556,19 +595,154 @@ private extension SquirrelInputController {
       // swiftlint:enable identifier_name
       let page = Int(ctx.menu.page_no)
       let lastPage = ctx.menu.is_last_page
+      visibleCandidates = candidates
+      visibleComments = comments
+      visibleLabels = labels
 
       let selRange = NSRange(location: start.utf16Offset(in: preedit), length: preedit.utf16.distance(from: start, to: end))
       showPanel(preedit: inlinePreedit ? "" : preedit, selRange: selRange, caretPos: caretPos.utf16Offset(in: preedit),
                 candidates: candidates, comments: comments, labels: labels, highlighted: Int(ctx.menu.highlighted_candidate_index),
                 page: page, lastPage: lastPage)
       _ = rimeAPI.free_context(&ctx)
+      requestDynamicTranslationIfNeeded()
     } else {
+      cancelDynamicTranslation()
+      visibleComments.removeAll()
+      visibleLabels.removeAll()
       hidePalettes()
     }
   }
 
+  private func requestDynamicTranslationIfNeeded() {
+    guard let snapshot = translationSnapshot() else {
+      cancelDynamicTranslation()
+      return
+    }
+    let request = candidateTranslation.observe(snapshot)
+    updateTranslationPanel()
+    guard let request else { return }
+    sendTranslation(request)
+  }
+
+  private func sendTranslation(_ request: RoTypeCandidateTranslationSession.Ticket) {
+    let snapshot = request.snapshot
+    // Also cancel older work when this candidate has no valid request payload.
+    translationClient.cancel(sessionID: translationSessionID, throughGeneration: request.generation - 1)
+    updateTranslationPanel()
+    guard let candidateRequest = snapshot.translationRequest else {
+      candidateTranslation.fail("当前候选不适用于中英翻译", for: request, retryable: false)
+      updateTranslationPanel()
+      return
+    }
+    if #unavailable(macOS 26.0) {
+      candidateTranslation.fail(.requiresMacOS26, for: request)
+      updateTranslationPanel()
+      return // Static fallback does not require a dynamic request or language pack.
+    }
+    translationClient.translate(sessionID: translationSessionID, generation: request.generation,
+                                request: candidateRequest) { [weak self] result in
+      guard let self, self.candidateTranslation.ticket == request,
+            self.translationSnapshot() == snapshot else { return }
+      switch result {
+      case let .success(response):
+        if !response.translatedText.isEmpty {
+          self.candidateTranslation.receive(response.translatedText, for: request, direction: response.direction)
+          self.lastTranslationError = nil
+        } else {
+          self.candidateTranslation.fail("翻译结果与当前候选不匹配", for: request, retryable: false)
+        }
+      case let .failure(error):
+        let failure = CandidateTranslationFailure.from(error)
+        self.candidateTranslation.fail(failure, for: request)
+        if self.candidateTranslation.commit == nil {
+          self.reportTranslationError(failure)
+        } else {
+          self.lastTranslationError = nil
+        }
+      }
+      // Only redraw the translation action; never recompose or renumber Rime.
+      self.updateTranslationPanel()
+    }
+  }
+
+  private func translationSnapshot() -> RoTypeCandidateSnapshot? {
+    guard session != 0, client != nil, !IsSecureEventInputEnabled(),
+          processKey(UInt32(XK_F19), modifiers: 0),
+          let raw = property(named: "rotype_panel_raw"), !raw.isEmpty,
+          let source = property(named: "rotype_panel_source"), !source.isEmpty,
+          let identity = property(named: "rotype_panel_identity"), !identity.isEmpty,
+          let scope = property(named: "rotype_panel_scope"), ["whole", "segment"].contains(scope) else { return nil }
+    return RoTypeCandidateSnapshot(rawInput: raw, source: source, identity: identity, scope: scope)
+  }
+
+  private func setTranslationProperty(_ name: String, _ value: String) {
+    name.withCString { key in value.withCString { rimeAPI.set_property(session, key, $0) } }
+  }
+
+  private func updateTranslationPanel() {
+    let panel = NSApp.squirrelAppDelegate.panel
+    guard panel?.inputController === self else { return }
+    panel?.updateTranslation(candidateTranslation)
+  }
+
+  func commitTranslationSelection() {
+    guard let submission = candidateTranslation.commit,
+          translationSnapshot() == submission.snapshot else { return }
+    let snapshot = submission.snapshot
+    for (key, value) in [("raw", snapshot.rawInput), ("source", snapshot.source),
+                         ("identity", snapshot.identity), ("scope", snapshot.scope), ("text", submission.text)] {
+      setTranslationProperty("rotype_panel_commit_" + key, value)
+    }
+    _ = processKey(UInt32(XK_F20), modifiers: 0)
+    guard property(named: "rotype_panel_committed") == "1" else { return }
+    cancelDynamicTranslation()
+    rimeUpdate()
+  }
+
+  private func cancelDynamicTranslation() {
+    if let request = candidateTranslation.ticket {
+      translationClient.cancel(sessionID: translationSessionID, throughGeneration: request.generation)
+    }
+    candidateTranslation.invalidate()
+    updateTranslationPanel()
+  }
+
+  private func property(named name: String) -> String? {
+    var buffer = [CChar](repeating: 0, count: 16_384)
+    let found = name.withCString { propertyName in
+      buffer.withUnsafeMutableBufferPointer { storage in
+        rimeAPI.get_property(session, propertyName, storage.baseAddress, storage.count)
+      }
+    }
+    guard found, buffer.last == 0 else { return nil }
+    return String(cString: buffer)
+  }
+
+  private func reportTranslationError(_ error: Error) {
+    guard error.localizedDescription != lastTranslationError else { return }
+    lastTranslationError = error.localizedDescription
+    NSLog("RoType dynamic translation failed: \(error.localizedDescription)")
+  }
+
+  /// Route mouse and labelled-key selection through the same confirmation
+  /// processor as arrow-key + space. Lua decides whether the selected candidate
+  /// replaces the whole composition or only its current segment.
+  private func commitRoTypeWholeCompositionCandidate(at index: Int) -> Bool {
+    guard session != 0,
+          visibleCandidates.indices.contains(index),
+          visibleComments.indices.contains(index),
+          visibleComments[index] == "〔中→英〕",
+          rimeAPI.highlight_candidate_on_current_page(session, index) else { return false }
+    let handled = processKey(UInt32(XK_space), modifiers: 0)
+    if handled {
+      rimeUpdate()
+    }
+    return handled
+  }
+
   func commit(string: String) {
     guard let client = client else { return }
+    cancelDynamicTranslation()
     // print("[DEBUG] commitString: \(string)")
     client.insertText(string, replacementRange: .empty)
     preedit = ""

@@ -6,29 +6,36 @@ let package = Package(
     name: "RoType",
     platforms: [.macOS(.v14)],
     products: [
-        .executable(name: "RoTypeVoice", targets: ["RoTypeVoice"]),
-        .library(name: "RoTypeVoiceCore", targets: ["RoTypeVoiceCore"]),
-    ],
-    dependencies: [
-        .package(
-            url: "https://github.com/argmaxinc/argmax-oss-swift.git",
-            exact: "1.1.0"
-        ),
+        .executable(name: "RoTypeApp", targets: ["RoTypeApp"]),
+        .executable(name: "RoTypeTranslationService", targets: ["RoTypeTranslationService"]),
+        .library(name: "RoTypeCore", targets: ["RoTypeCore"]),
     ],
     targets: [
         .target(
-            name: "RoTypeVoiceCore",
-            dependencies: [
-                .product(name: "WhisperKit", package: "argmax-oss-swift"),
-            ]
+            name: "RoTypeXPCProtocol",
+            path: "Shared/RoTypeXPCProtocol",
+            publicHeadersPath: "include"
+        ),
+        .target(name: "RoTypeCore"),
+        .executableTarget(
+            name: "RoTypeApp",
+            dependencies: ["RoTypeCore", "RoTypeXPCProtocol"]
         ),
         .executableTarget(
-            name: "RoTypeVoice",
-            dependencies: ["RoTypeVoiceCore"]
+            name: "RoTypeTranslationService",
+            dependencies: ["RoTypeCore", "RoTypeXPCProtocol"]
         ),
         .testTarget(
-            name: "RoTypeVoiceCoreTests",
-            dependencies: ["RoTypeVoiceCore"]
+            name: "RoTypeAppTests",
+            dependencies: ["RoTypeApp"]
+        ),
+        .testTarget(
+            name: "RoTypeCoreTests",
+            dependencies: ["RoTypeCore"]
+        ),
+        .testTarget(
+            name: "RoTypeTranslationServiceTests",
+            dependencies: ["RoTypeCore", "RoTypeTranslationService"]
         ),
     ]
 )
