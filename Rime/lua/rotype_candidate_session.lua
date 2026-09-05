@@ -6,6 +6,9 @@ local function snapshot(context)
   if not segment then return nil end
   local candidate = segment:get_selected_candidate()
   if not candidate or candidate.text == "" then return nil end
+  local genuine = candidate.get_genuine and candidate:get_genuine()
+  local learned = genuine and genuine.to_phrase and genuine:to_phrase()
+      and (genuine.type == "user_phrase" or genuine.type == "user_table")
   local raw = context.input or ""
   local prefix = {}
   local complete_prefix = true
@@ -27,10 +30,12 @@ local function snapshot(context)
     scope = whole and "whole" or "segment",
     segment = segment,
     candidate = candidate,
+    learned = learned and true or false,
   }
 end
 
 local function publish(context, value)
+  context:set_property("rotype_panel_can_forget", value and value.learned and "1" or "0")
   for _, field in ipairs({"raw", "source", "identity", "scope"}) do
     context:set_property("rotype_panel_" .. field, value and value[field] or "")
   end

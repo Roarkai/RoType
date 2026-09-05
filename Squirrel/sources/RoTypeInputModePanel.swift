@@ -22,6 +22,11 @@ final class RoTypeInputModePanel: NSPanel {
     isReleasedWhenClosed = false
   }
 
+  /// ASCII mode belongs to this badge; other option notices keep their legacy UI.
+  static func showsLegacyStatus(for optionName: String) -> Bool {
+    optionName != "ascii_mode"
+  }
+
   override var canBecomeKey: Bool { false }
   override var canBecomeMain: Bool { false }
 

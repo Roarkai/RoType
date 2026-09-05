@@ -69,7 +69,6 @@ final class SquirrelInputController: IMKInputController {
         handled = true
         break
       }
-      // print("[DEBUG] FLAGSCHANGED client: \(sender ?? "nil"), modifiers: \(modifiers)")
       var rimeModifiers: UInt32 = SquirrelKeycode.osxModifiersToRime(modifiers: modifiers)
       if changes.contains(.capsLock) {
         let rimeKeycode = SquirrelKeycode.modifierKeycode(modifier: .capsLock, keycode: event.keyCode)
@@ -118,7 +117,6 @@ final class SquirrelInputController: IMKInputController {
          (capitalModifiers && !code.isLetter) || (!capitalModifiers && !code.isASCII) {
         keyChars = event.characters
       }
-      // print("[DEBUG] KEYDOWN client: \(sender ?? "nil"), modifiers: \(modifiers), keyCode: \(keyCode), keyChars: [\(keyChars ?? "empty")]")
 
       // translate osx keyevents to rime keyevents
       if let char = keyChars?.first {
@@ -165,6 +163,22 @@ final class SquirrelInputController: IMKInputController {
     }
   }
 
+  func learningMenu(for index: Int) -> NSMenu? {
+    guard session != 0, visibleCandidates.indices.contains(index) else { return nil }
+    highlightCandidate(index)
+    guard let snapshot = translationSnapshot(),
+          let selected = Int(snapshot.identity.split(separator: ":").last ?? ""), selected % 5 == index else { return nil }
+    let sessionId = session
+    return RoTypeCandidateLearningMenu.make(candidate: visibleCandidates[index],
+      canForget: property(named: "rotype_panel_can_forget") == "1") { [weak self] in
+      guard let self, self.session == sessionId, self.translationSnapshot() == snapshot,
+            self.property(named: "rotype_panel_can_forget") == "1" else { return }
+      self.cancelDynamicTranslation()
+      _ = self.rimeAPI.delete_candidate_on_current_page(self.session, index)
+      self.rimeUpdate()
+    }
+  }
+
   func selectCandidate(_ index: Int) -> Bool {
     if commitRoTypeWholeCompositionCandidate(at: index) {
       return true
@@ -206,13 +220,11 @@ final class SquirrelInputController: IMKInputController {
   }
 
   override func recognizedEvents(_ sender: Any!) -> Int {
-    // print("[DEBUG] recognizedEvents:")
     return Int(NSEvent.EventTypeMask.Element(arrayLiteral: .keyDown, .flagsChanged).rawValue)
   }
 
   override func activateServer(_ sender: Any!) {
     self.client ?= sender as? IMKTextInput
-    // print("[DEBUG] activateServer:")
     var keyboardLayout = NSApp.squirrelAppDelegate.config?.getString("keyboard_layout") ?? ""
     if keyboardLayout == "last" || keyboardLayout == "" {
       keyboardLayout = ""
@@ -236,14 +248,12 @@ final class SquirrelInputController: IMKInputController {
 
   override init!(server: IMKServer!, delegate: Any!, client: Any!) {
     self.client = client as? IMKTextInput
-    // print("[DEBUG] initWithServer: \(server ?? .init()) delegate: \(delegate ?? "nil") client:\(client ?? "nil")")
     super.init(server: server, delegate: delegate, client: client)
     createSession()
   }
 
   override func deactivateServer(_ sender: Any!) {
     inputModePanel.deactivate()
-    // print("[DEBUG] deactivateServer: \(sender ?? "nil")")
     cancelDynamicTranslation()
     hidePalettes()
     commitComposition(sender)
@@ -261,7 +271,6 @@ final class SquirrelInputController: IMKInputController {
   // End the input session and send its current buffer to the client.
   override func commitComposition(_ sender: Any!) {
     self.client ?= sender as? IMKTextInput
-    // print("[DEBUG] commitComposition: \(sender ?? "nil")")
     //  commit raw input
     if session != 0 {
       if let input = rimeAPI.get_input(session) {
@@ -367,7 +376,6 @@ private extension SquirrelInputController {
   }
 
   func updateChord(keycode: UInt32, modifiers: UInt32) {
-    // print("[DEBUG] update chord: {\(chordKeyCodes)} << \(keycode)")
     for i in 0..<chordKeyCount where chordKeyCodes[i] == keycode {
       return
     }
@@ -428,7 +436,6 @@ private extension SquirrelInputController {
   }
 
   func destroySession() {
-    // print("[DEBUG] destroySession:")
     if session != 0 {
       let sessionID = translationSessionID
       translationClient.cancel(sessionID: sessionID, throughGeneration: candidateTranslation.ticket?.generation ?? 0)
@@ -454,7 +461,6 @@ private extension SquirrelInputController {
     }
 
     let handled = rimeAPI.process_key(session, Int32(rimeKeycode), Int32(rimeModifiers))
-    // print("[DEBUG] rime_keycode: \(rimeKeycode), rime_modifiers: \(rimeModifiers), handled = \(handled)")
 
     // TODO add special key event postprocessing here
 
@@ -463,7 +469,6 @@ private extension SquirrelInputController {
       if isVimBackInCommandMode && rimeAPI.get_option(session, "vim_mode") &&
           !rimeAPI.get_option(session, "ascii_mode") {
         rimeAPI.set_option(session, "ascii_mode", true)
-        // print("[DEBUG] turned Chinese mode off in vim-like editor's command mode")
       }
     } else {
       let isChordingKey = switch Int32(rimeKeycode) {
@@ -496,7 +501,6 @@ private extension SquirrelInputController {
   // swiftlint:disable:next cyclomatic_complexity
   func rimeUpdate() {
     defer { inputModePanel.update(ascii: rimeAPI.get_option(session, "ascii_mode")) }
-    // print("[DEBUG] rimeUpdate")
     rimeConsumeCommittedText()
 
     var status = RimeStatus_stdbool.rimeStructInit()
@@ -752,7 +756,6 @@ private extension SquirrelInputController {
   func commit(string: String) {
     guard let client = client else { return }
     cancelDynamicTranslation()
-    // print("[DEBUG] commitString: \(string)")
     client.insertText(string, replacementRange: .empty)
     preedit = ""
     hidePalettes()
@@ -760,7 +763,6 @@ private extension SquirrelInputController {
 
   func show(preedit: String, selRange: NSRange, caretPos: Int) {
     guard let client = client else { return }
-    // print("[DEBUG] showPreeditString: '\(preedit)'")
     if self.preedit == preedit && self.caretPos == caretPos && self.selRange == selRange {
       return
     }
@@ -769,7 +771,6 @@ private extension SquirrelInputController {
     self.caretPos = caretPos
     self.selRange = selRange
 
-    // print("[DEBUG] selRange.location = \(selRange.location), selRange.length = \(selRange.length); caretPos = \(caretPos)")
     let start = selRange.location
     let attrString = NSMutableAttributedString(string: preedit)
     if start > 0 {
@@ -784,7 +785,6 @@ private extension SquirrelInputController {
 
   // swiftlint:disable:next function_parameter_count
   func showPanel(preedit: String, selRange: NSRange, caretPos: Int, candidates: [String], comments: [String], labels: [String], highlighted: Int, page: Int, lastPage: Bool) {
-    // print("[DEBUG] showPanelWithPreedit:...:")
     guard let client = client else { return }
     var inputPos = NSRect()
     client.attributes(forCharacterIndex: 0, lineHeightRectangle: &inputPos)

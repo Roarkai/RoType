@@ -63,6 +63,7 @@ xcrun clang++ -std=c++20 \
   -o "$test_binary"
 
 "$test_binary" "$shared_data" "$user_dir" "$runtime_data"
+ROTYPE_SQUIRREL_APP="$squirrel_app" zsh "$repo_dir/scripts/test-rime-learning.sh"
 
 if [[ "${ROTYPE_RIME_BENCHMARK:-0}" == 1 ]]; then
   xcrun clang++ -std=c++20 "$repo_dir/Tests/RimeIntegration/rime_latency_benchmark.cc" \

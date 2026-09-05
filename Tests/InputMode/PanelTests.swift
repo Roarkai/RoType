@@ -4,8 +4,26 @@ import AppKit
 @MainActor
 struct PanelTests {
   static func main() {
+    if RoTypeInputModePanel.showsLegacyStatus(for: "ascii_mode") {
+      print("FAIL: ascii_mode must not show both legacy text and the mode badge")
+      exit(1)
+    }
+    for option in ["full_shape", "ascii_punct", "simplification"] {
+      precondition(RoTypeInputModePanel.showsLegacyStatus(for: option))
+    }
     _ = NSApplication.shared
     NSApp.setActivationPolicy(.accessory)
+    var forgotten = 0
+    let menu = RoTypeCandidateLearningMenu.make(candidate: "事件", canForget: true) { forgotten += 1 }
+    let item = menu.item(at: 0)!
+    precondition(item.title == "忘记「事件」的学习记录" && item.isEnabled)
+    precondition(NSApp.sendAction(item.action!, to: item.target, from: item))
+    precondition(forgotten == 1)
+    let disabled = RoTypeCandidateLearningMenu.make(candidate: "时间", canForget: false) { forgotten += 1 }
+    let disabledItem = disabled.item(at: 0)!
+    precondition(!disabledItem.isEnabled)
+    _ = NSApp.sendAction(disabledItem.action!, to: disabledItem.target, from: disabledItem)
+    precondition(forgotten == 1, "factory-only candidates cannot invoke forgetting")
     guard let screen = NSScreen.main else {
       print("SKIP: input-mode panel requires a GUI session")
       return

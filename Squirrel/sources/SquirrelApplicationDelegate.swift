@@ -259,7 +259,7 @@ private func notificationHandler(contextObject: UnsafeMutableRawPointer?, sessio
     } else {
       String(messageValue![messageValue!.index(after: messageValue!.startIndex)...])
     }
-    if let optionName = optionName {
+    if let optionName = optionName, RoTypeInputModePanel.showsLegacyStatus(for: optionName) {
       optionName.withCString { name in
         let stateLabelLong = delegate.rimeAPI.get_state_label_abbreviated(sessionId, name, state, false)
         let stateLabelShort = delegate.rimeAPI.get_state_label_abbreviated(sessionId, name, state, true)

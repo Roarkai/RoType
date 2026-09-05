@@ -33,6 +33,7 @@ final class SquirrelPanel: NSPanel {
   private var page: Int = 0
   private var lastPage: Bool = true
   private var pagingUp: Bool?
+  private var contextMenuClick = false
 
   init(position: NSRect) {
     self.position = position
@@ -83,7 +84,6 @@ final class SquirrelPanel: NSPanel {
     app.run()
   }
 
-  var linear: Bool { view.currentTheme.linear }
   var vertical: Bool {
     view.currentTheme.vertical
   }
@@ -96,6 +96,7 @@ final class SquirrelPanel: NSPanel {
 
   // swiftlint:disable:next cyclomatic_complexity
   override func sendEvent(_ event: NSEvent) {
+    if handleLearningMenu(event) { return }
     switch event.type {
     case .leftMouseDown:
       let (index, _, pagingUp) =  view.click(at: mousePosition())
@@ -346,6 +347,27 @@ final class SquirrelPanel: NSPanel {
       view.lightTheme = SquirrelTheme()
       view.lightTheme.load(config: config, dark: isDark)
     }
+  }
+}
+
+extension SquirrelPanel {
+  var linear: Bool { view.currentTheme.linear }
+
+  private func handleLearningMenu(_ event: NSEvent) -> Bool {
+    if event.type == .leftMouseDown { contextMenuClick = false }
+    if event.type == .rightMouseDown || (event.type == .leftMouseDown && event.modifierFlags.contains(.control)) {
+      contextMenuClick = event.type == .leftMouseDown
+      let (index, _, _) = view.click(at: mousePosition())
+      if let index, let menu = inputController?.learningMenu(for: index) {
+        NSMenu.popUpContextMenu(menu, with: event, for: view)
+      }
+      return true
+    }
+    if event.type == .leftMouseUp && contextMenuClick {
+      contextMenuClick = false
+      return true
+    }
+    return false
   }
 }
 
