@@ -209,6 +209,44 @@ int main(int argc, char** argv) {
 
   api->destroy_session(session);
 
+  // Both Shift keys must enter persistent English, including from composition.
+  // The inherited inline_ascii binding used to switch back after submission.
+  const char* shift_schemes[][2] = {{"rotype", "nihao"}, {"rotype_flypy", "nihk"}};
+  for (const auto& sample : shift_schemes) {
+    const auto shift_session = api->create_session();
+    if (!shift_session || !api->select_schema(shift_session, sample[0])) return 190;
+    api->set_property(shift_session, "rotype_translation_presentation", "panel");
+    for (int key : {0xffe1, 0xffe2}) { // X11 Shift_L / Shift_R
+      api->clear_composition(shift_session);
+      api->set_option(shift_session, "ascii_mode", false);
+      api->simulate_key_sequence(shift_session, sample[1]);
+      api->process_key(shift_session, key, 1); // press with Shift mask
+      // The native controller refreshes the translation snapshot on flagsChanged.
+      api->simulate_key_sequence(shift_session, "{F19}");
+      api->process_key(shift_session, key, 1 << 30); // release
+      if (!api->get_option(shift_session, "ascii_mode")) {
+        std::cerr << "FAIL: internal F19 snapshot cancelled Shift gesture: " << sample[0] << '\n';
+        return 191;
+      }
+      api->commit_composition(shift_session);
+      if (!api->get_option(shift_session, "ascii_mode")) {
+        std::cerr << "FAIL: Shift English mode reset after submission: " << sample[0] << ' ' << key << '\n';
+        return 192;
+      }
+      api->process_key(shift_session, key, 1);
+      api->simulate_key_sequence(shift_session, "{F19}");
+      api->process_key(shift_session, key, 1 << 30);
+      if (api->get_option(shift_session, "ascii_mode")) return 193;
+      // Shift+letter must not toggle the mode on release.
+      api->process_key(shift_session, key, 1);
+      api->process_key(shift_session, 'A', 1);
+      api->process_key(shift_session, key, 1 << 30);
+      if (api->get_option(shift_session, "ascii_mode")) return 194;
+    }
+    api->destroy_session(shift_session);
+  }
+  std::cout << "persistent Shift switching and capital-letter chords passed\n";
+
   // Old schema imports load without restoring numbered translations or refresh.
   const auto legacy_session = api->create_session();
   if (!legacy_session || !api->select_schema(legacy_session, "rotype_compat")) return 104;

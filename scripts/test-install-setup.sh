@@ -22,11 +22,9 @@ for fixture_progress in new resume complete deferred unknown; do
       : > "$log"
       finish_rotype_user_setup 501 "$temporary/home" input-method helper "$agent_ready" >/dev/null
       grep -q -- '--register-input-source' "$log"
-      if [[ "$fixture_progress" == new && "$fail_register" == false ]]; then
-        grep -q -- '--enable-input-source' "$log"
-        grep -q -- '--select-input-source' "$log"
-      else
-        ! grep -qE -- '--enable-input-source|--select-input-source' "$log"
+      if grep -qE -- '--enable-input-source|--select-input-source' "$log"; then
+        echo 'FAIL: installation must not confuse TIS enable/select success with native menu enrollment.' >&2
+        exit 1
       fi
       marker="$temporary/home/Library/Application Support/RoType/input-source-setup-required"
       if [[ ( "$fixture_progress" == complete || "$fixture_progress" == deferred ) && "$agent_ready" == true && "$fail_register" == false ]]; then

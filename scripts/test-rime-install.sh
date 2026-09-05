@@ -12,7 +12,7 @@ cp "$temporary/rime/lua/user_module.lua" "$temporary/module-before"
 HOME="$temporary/home" ROTYPE_RIME_DIR="$temporary/rime" zsh "$repo_dir/scripts/install-rime.sh" > "$temporary/install.log"
 cmp "$temporary/settings-before" "$temporary/rime/default.custom.yaml"
 cmp "$temporary/module-before" "$temporary/rime/lua/user_module.lua"
-for module in rotype_candidate_session rotype_candidate_filter rotype_dynamic_bilingual_filter \
+for module in rotype_candidate_session rotype_candidate_snapshot rotype_candidate_filter rotype_dynamic_bilingual_filter \
   rotype_dynamic_refresh rotype_full_translation_commit rotype_bilingual_translator; do
   [[ -f "$temporary/rime/lua/$module.lua" ]]
 done

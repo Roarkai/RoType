@@ -9,6 +9,8 @@ luajit Tests/RimeIntegration/candidate_filter_stream_test.lua
 luajit Tests/RimeIntegration/simplified_only_filter_test.lua
 
 zsh "$repo_dir/scripts/test-candidate-session.sh"
+bash "$repo_dir/scripts/test-input-mode-panel.sh"
+bash "$repo_dir/scripts/test-modifier-keys.sh"
 zsh "$repo_dir/scripts/test-rime-install.sh"
 "$repo_dir/scripts/test-squirrel-integration.sh"
 "$repo_dir/scripts/test-installer.sh"

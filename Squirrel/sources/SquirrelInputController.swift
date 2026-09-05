@@ -36,6 +36,7 @@ final class SquirrelInputController: IMKInputController {
   private let translationSessionID = UUID().uuidString
   private var candidateTranslation = RoTypeCandidateTranslationSession()
   private var lastTranslationError: String?
+  private let inputModePanel = RoTypeInputModePanel()
 
   // swiftlint:disable:next cyclomatic_complexity
   override func handle(_ event: NSEvent!, client sender: Any!) -> Bool {
@@ -70,11 +71,8 @@ final class SquirrelInputController: IMKInputController {
       }
       // print("[DEBUG] FLAGSCHANGED client: \(sender ?? "nil"), modifiers: \(modifiers)")
       var rimeModifiers: UInt32 = SquirrelKeycode.osxModifiersToRime(modifiers: modifiers)
-      // For flags-changed event, keyCode is available since macOS 10.15
-      // (#715)
-      let rimeKeycode: UInt32 = SquirrelKeycode.osxKeycodeToRime(keycode: event.keyCode, keychar: nil, shift: false, caps: false)
-
       if changes.contains(.capsLock) {
+        let rimeKeycode = SquirrelKeycode.modifierKeycode(modifier: .capsLock, keycode: event.keyCode)
         // NOTE: rime assumes XK_Caps_Lock to be sent before modifier changes,
         // while NSFlagsChanged event has the flag changed already.
         // so it is necessary to revert kLockMask.
@@ -86,6 +84,7 @@ final class SquirrelInputController: IMKInputController {
       // sometimes release event is delayed to next modifier keydown.
       var buffer = [(keycode: UInt32, modifier: UInt32)]()
       for flag in [NSEvent.ModifierFlags.shift, .control, .option, .command] where changes.contains(flag) {
+        let rimeKeycode = SquirrelKeycode.modifierKeycode(modifier: flag, keycode: event.keyCode)
         if modifiers.contains(flag) { // New modifier
           buffer.append((keycode: rimeKeycode, modifier: rimeModifiers))
         } else { // Release
@@ -100,6 +99,7 @@ final class SquirrelInputController: IMKInputController {
       rimeUpdate()
 
     case .keyDown:
+      inputModePanel.hide()
       // ignore Command+X hotkeys.
       if modifiers.contains(.command) {
         break
@@ -225,7 +225,13 @@ final class SquirrelInputController: IMKInputController {
       client?.overrideKeyboard(withKeyboardNamed: keyboardLayout)
     }
     preedit = ""
+    lastModifiers = NSEvent.modifierFlags
+    if let app = client?.bundleIdentifier(), currentApp != app {
+      currentApp = app
+      updateAppOptions()
+    }
     NSApp.squirrelAppDelegate.inputControllerDidActivate(self)
+    inputModePanel.activate(client: client, ascii: rimeAPI.get_option(session, "ascii_mode"))
   }
 
   override init!(server: IMKServer!, delegate: Any!, client: Any!) {
@@ -236,6 +242,7 @@ final class SquirrelInputController: IMKInputController {
   }
 
   override func deactivateServer(_ sender: Any!) {
+    inputModePanel.deactivate()
     // print("[DEBUG] deactivateServer: \(sender ?? "nil")")
     cancelDynamicTranslation()
     hidePalettes()
@@ -246,6 +253,7 @@ final class SquirrelInputController: IMKInputController {
   }
 
   override func hidePalettes() {
+    inputModePanel.hide()
     NSApp.squirrelAppDelegate.panel?.hide()
     super.hidePalettes()
   }
@@ -487,6 +495,7 @@ private extension SquirrelInputController {
 
   // swiftlint:disable:next cyclomatic_complexity
   func rimeUpdate() {
+    defer { inputModePanel.update(ascii: rimeAPI.get_option(session, "ascii_mode")) }
     // print("[DEBUG] rimeUpdate")
     rimeConsumeCommittedText()
 

@@ -10,6 +10,25 @@ import AppKit
 
 struct SquirrelKeycode {
 
+  static func modifierKeycode(modifier: NSEvent.ModifierFlags, keycode: UInt16) -> UInt32 {
+    // IMK flagsChanged can omit the physical keycode (zero is also the A key).
+    // The changed modifier identifies the key; physical codes only refine side.
+    switch modifier {
+    case .shift:
+      return UInt32(keycode == UInt16(kVK_RightShift) ? XK_Shift_R : XK_Shift_L)
+    case .control:
+      return UInt32(keycode == UInt16(kVK_RightControl) ? XK_Control_R : XK_Control_L)
+    case .option:
+      return UInt32(keycode == UInt16(kVK_RightOption) ? XK_Alt_R : XK_Alt_L)
+    case .command:
+      return UInt32(keycode == UInt16(kVK_RightCommand) ? XK_Super_R : XK_Super_L)
+    case .capsLock:
+      return UInt32(XK_Caps_Lock)
+    default:
+      return UInt32(XK_VoidSymbol)
+    }
+  }
+
   static func osxModifiersToRime(modifiers: NSEvent.ModifierFlags) -> UInt32 {
     var ret: UInt32 = 0
     if modifiers.contains(.capsLock) {

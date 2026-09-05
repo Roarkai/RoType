@@ -7,16 +7,11 @@ finish_rotype_user_setup() {
   progress=$(run_as_user "$uid" "$helper/Contents/MacOS/LuokeInput" --setup-state) || progress=unknown
   case "$progress" in complete|deferred|resume|new) ;; *) progress=unknown ;; esac
 
-  # Registration updates bundle metadata. Only a genuinely new configuration
-  # may enable/select: updates must not override a chosen source or disablement.
+  # Register metadata only. On macOS 26, successful programmatic enable/select
+  # can still leave the native menu missing this source. First enrollment goes
+  # through System Settings; updates must not override the user's source choice.
   if ! run_as_user "$uid" "$executable" --register-input-source; then
     setup_succeeded=false
-  elif [[ "$progress" == new ]]; then
-    if ! run_as_user "$uid" "$executable" --enable-input-source; then
-      setup_succeeded=false
-    elif ! run_as_user "$uid" "$executable" --select-input-source; then
-      setup_succeeded=false
-    fi
   fi
 
   local state_dir="$home/Library/Application Support/RoType"

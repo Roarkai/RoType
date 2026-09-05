@@ -182,11 +182,21 @@ private struct InputSourceSetupPane: View {
                             .foregroundStyle(.secondary)
                     }
                     Spacer()
-                    Button(manager.isWorking ? "正在准备..." : (manager.isReady ? "切换到洛克" : "启用")) {
-                        manager.enableAndSelect()
+                    Button(manager.isWorking ? "正在准备..." :
+                        (settings.keyboardVerified && manager.isReady ? "切换到洛克" : "打开系统设置添加")) {
+                        if settings.keyboardVerified && manager.isReady {
+                            manager.enableAndSelect()
+                        } else {
+                            manager.openKeyboardSettings()
+                        }
                     }
                     .disabled(manager.isWorking)
                 }
+            }
+            if !keyboardConfigured {
+                Text("系统设置 → 键盘 → 文本输入「编辑」→ ＋ → 简体中文 → 洛克输入法。添加后，请从顶部菜单选择洛克，再回这里试打。")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
             }
             if !compact {
                 Text("全拼 / 小鹤双拼可在输入法菜单切换。候选每页 5 项；Tab 直接提交独立译文。")

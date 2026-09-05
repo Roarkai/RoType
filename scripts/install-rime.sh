@@ -23,6 +23,7 @@ done
 
 lua_files=(
   rotype_candidate_session.lua
+  rotype_candidate_snapshot.lua
   rotype_candidate_filter.lua
   rotype_bilingual_translator.lua
   rotype_dynamic_bilingual_filter.lua
