@@ -38,9 +38,14 @@ printf '%s\n' 'patch:' '  schema_list:' '    - schema: rotype' '    - schema: ro
 "$deployer" --build "$user_dir" "$shared_data" "$staging_dir"
 
 runtime_data="$staging_dir"
-if [[ ! -f "$runtime_data/rotype_zh.table.bin" ]]; then
-  runtime_data="$shared_data/build"
-fi
+# A packaged App already contains dictionaries. Keep freshly compiled custom
+# schemas in staging, and fill only missing files from its prebuilt data.
+# Switching the entire runtime to shared/build would silently lose rotype_compat.
+for prebuilt in "$shared_data/build/"*(N); do
+  if [[ ! -e "$runtime_data/${prebuilt:t}" ]]; then
+    /bin/cp -R "$prebuilt" "$runtime_data/"
+  fi
+done
 [[ -f "$runtime_data/rotype_zh.table.bin" ]]
 [[ -f "$runtime_data/rotype_en.table.bin" ]]
 [[ -f "$runtime_data/rotype.schema.yaml" ]]
