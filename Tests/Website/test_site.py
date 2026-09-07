@@ -9,6 +9,8 @@ import sys
 from playwright.sync_api import expect, sync_playwright
 
 BASE = (sys.argv[1] if len(sys.argv) > 1 else 'http://127.0.0.1:4173').rstrip('/')
+RELEASE = 'https://github.com/Roarkai/RoType/releases'
+DOWNLOAD = RELEASE + '/download/v0.0.1/'
 CHROME = os.environ.get('CHROME_PATH', '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome')
 OUT = Path('/tmp/rotype-website-qa')
 OUT.mkdir(exist_ok=True)
@@ -41,6 +43,10 @@ with sync_playwright() as p:
             assert page.locator('.hero .eyebrow').inner_text() == '为你的 Mac，多一种表达。'
             assert page.locator('.hero-actions .button').count() == 1
             assert page.locator('.hero-actions a').count() == 1
+            assert page.locator('.hero-actions a').get_attribute('href') == DOWNLOAD + 'RoType-0.0.1-arm64.pkg'
+            assert page.locator('a[href^="/downloads/"]').count() == 0
+            assert page.get_by_role('link', name='SHA-256 校验', exact=True).get_attribute('href') == DOWNLOAD + 'SHA256SUMS.txt'
+            assert page.get_by_role('link', name='源码', exact=True).get_attribute('href') == DOWNLOAD + 'RoType-0.0.1-source.tar.gz'
             assert page.locator('.requirements').get_attribute('open') is not None
             for selector in ['.requirements summary', '.requirements p']:
                 assert int(page.locator(selector).evaluate('(node) => getComputedStyle(node).fontWeight')) >= 600
@@ -66,6 +72,11 @@ with sync_playwright() as p:
         page.goto(BASE + route, wait_until='networkidle')
         assert page.locator('h1').count() == 1
         assert page.locator('.site-links a').count() == 2
+        assert page.locator('a[href^="/downloads/"]').count() == 0
+        if route == '/releases/':
+            assert page.locator('a.button').get_attribute('href') == DOWNLOAD + 'RoType-0.0.1-arm64.pkg'
+            assert page.get_by_role('link', name='SHA-256 校验和').get_attribute('href') == DOWNLOAD + 'SHA256SUMS.txt'
+            assert 'Build 48' not in page.locator('body').inner_text()
         assert not page.evaluate('document.documentElement.scrollWidth > innerWidth')
     context.close()
     context = browser.new_context(java_script_enabled=False, viewport={'width': 390, 'height': 844})

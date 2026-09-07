@@ -22,7 +22,7 @@
 
 任意短语的动态翻译当前使用 macOS 26 的无界面 `TranslationSession`；更早系统走静态双语热词分支，不发送动态翻译请求。词条未命中时明确提示不可用。密码框和 macOS Secure Input 不在支持范围内。
 
-自动化测试不等于真实麦克风、InputMethodKit 或跨应用输入验收。Build 52 已完成公证和本机安装：保留 44×32 像素底板，缩小 R 字母，与 A 的实机字高相差 1 像素，见 [发布记录](docs/architecture/release-0.0.1-build52.md)。官网当前下载仍为 Build 48。
+自动化测试不等于真实麦克风、InputMethodKit 或跨应用输入验收。Build 52 已完成公证和本机安装：保留 44×32 像素底板，缩小 R 字母，与 A 的实机字高相差 1 像素，见 [发布记录](docs/architecture/release-0.0.1-build52.md)。官网通过 GitHub Releases 分发 v0.0.1。
 
 ## 环境
 
