@@ -2,19 +2,19 @@ import SwiftUI
 
 struct PrivacyPane: View {
     var body: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            PaneTitle("隐私与诊断", detail: "仅保留键盘输入与本地翻译。")
+        VStack(alignment: .leading, spacing: 24) {
+            PaneTitle("隐私与诊断", detail: "哪些数据会被处理，什么时候会访问麦克风。")
             SettingsCard {
                 FeatureRow(
                     icon: "mic.slash",
-                    title: "输入法不使用麦克风",
-                    detail: "不包含录音、语音识别或语音后台服务"
+                    title: "麦克风仅在主动录音时使用",
+                    detail: "自动准备只加载模型，不会录音。按住 Fn 才使用麦克风；临时音频在识别结束或取消后删除，不发送云端"
                 )
                 Divider()
                 FeatureRow(
                     icon: "keyboard.badge.ellipsis",
-                    title: "输入法不监听全局按键",
-                    detail: "仅通过 macOS InputMethodKit 处理当前输入会话"
+                    title: "快捷键与输入目标",
+                    detail: "自动准备开关会记住你的选择。监听 Fn 和目标变化，不记录按键内容；只在选中洛克时响应录音"
                 )
                 Divider()
                 FeatureRow(

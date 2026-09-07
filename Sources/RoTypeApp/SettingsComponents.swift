@@ -7,14 +7,15 @@ struct FeatureRow: View {
     let detail: String
 
     var body: some View {
-        HStack(spacing: 14) {
+        HStack(alignment: .top, spacing: 12) {
             Image(systemName: icon)
-                .frame(width: 28)
-                .font(.title3)
-                .foregroundStyle(Color.accentColor)
+                .font(.system(size: 15, weight: .regular))
+                .foregroundStyle(CossStyle.muted)
+                .frame(width: 22, height: 20)
             VStack(alignment: .leading, spacing: 3) {
-                Text(title).font(.headline)
-                Text(detail).foregroundStyle(.secondary)
+                Text(title).font(.system(size: 13, weight: .medium))
+                Text(detail).font(.system(size: 12)).foregroundStyle(CossStyle.muted)
+                    .fixedSize(horizontal: false, vertical: true)
             }
         }
     }
@@ -31,8 +32,9 @@ struct PaneTitle: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text(title).font(.title2.bold())
-            Text(detail).foregroundStyle(.secondary)
+            Text(title).font(.system(size: 23, weight: .semibold)).tracking(-0.4)
+            Text(detail).font(.system(size: 13)).foregroundStyle(CossStyle.muted)
+                .fixedSize(horizontal: false, vertical: true)
         }
     }
 }
@@ -41,10 +43,11 @@ struct SettingsCard<Content: View>: View {
     @ViewBuilder let content: Content
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) { content }
-            .padding(18)
+        VStack(alignment: .leading, spacing: 16) { content }
+            .padding(20)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(.quaternary.opacity(0.45), in: RoundedRectangle(cornerRadius: 8))
+            .background(CossStyle.surface, in: RoundedRectangle(cornerRadius: 12))
+            .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(CossStyle.border, lineWidth: 1))
     }
 }
 
@@ -59,8 +62,8 @@ final class RoTypeSettingsWindowController: NSWindowController, NSWindowDelegate
     convenience init(settings: RoTypeSettings) {
         let controller = NSHostingController(rootView: RoTypeSettingsRootView(settings: settings))
         let window = NSWindow(contentViewController: controller)
-        window.setContentSize(NSSize(width: 760, height: 580))
-        window.minSize = NSSize(width: 680, height: 520)
+        window.setContentSize(NSSize(width: 880, height: 660))
+        window.minSize = NSSize(width: 760, height: 560)
         window.title = "洛克输入法设置"
         window.styleMask = [.titled, .closable, .miniaturizable, .resizable]
         window.isReleasedWhenClosed = false

@@ -3,3 +3,6 @@
 dist/
 .DS_Store
 *.xcuserstate
+website/downloads/
+__pycache__/
+*.py[cod]

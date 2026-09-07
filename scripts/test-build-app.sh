@@ -12,7 +12,11 @@ codesign --verify --deep --strict "$app_dir"
 codesign --verify --strict "$translation_service"
 codesign -dv --verbose=4 "$translation_service" 2>&1 | grep -q 'Identifier=im.roarkai.inputmethod.Luoke.translation'
 test -x "$translation_service"
-! codesign -d --entitlements :- "$app_dir" 2>/dev/null | grep -q 'com.apple.security.device.audio-input'
+codesign -d --entitlements :- "$app_dir" 2>/dev/null | grep -q 'com.apple.security.device.audio-input'
+! codesign -d --entitlements :- "$translation_service" 2>/dev/null | grep -q 'com.apple.security.device.audio-input'
+voice_worker="$app_dir/Contents/Helpers/RoTypeVoiceWorker"
+codesign --verify --strict -R '=anchor apple generic and identifier "im.roarkai.inputmethod.Luoke.asr" and certificate leaf[subject.OU] = "DF7J2VBQD8"' "$voice_worker"
+"$voice_worker" --self-test | grep -q 'self-test-ok'
 ! codesign -d --entitlements :- "$app_dir" 2>/dev/null | grep -q 'com.apple.security.network.client'
 ! test -d "$app_dir/Contents/Resources/ThirdParty/WhisperKit"
 test -f "$app_dir/Contents/Resources/Rime.icns"
@@ -23,6 +27,6 @@ plutil -extract CFBundleExecutable raw "$app_dir/Contents/Info.plist" | grep -qx
 plutil -extract CFBundleIconFile raw "$app_dir/Contents/Info.plist" | grep -qx Rime
 plutil -extract CFBundleIconName raw "$app_dir/Contents/Info.plist" | grep -qx Rime
 plutil -extract LSUIElement raw "$app_dir/Contents/Info.plist" | grep -qx true
-! plutil -extract NSMicrophoneUsageDescription raw "$app_dir/Contents/Info.plist" >/dev/null 2>&1
+plutil -extract NSMicrophoneUsageDescription raw "$app_dir/Contents/Info.plist" >/dev/null
 
-print "Repeated app build without voice capabilities passed: $app_dir"
+print "Repeated app build with isolated native voice worker passed: $app_dir"

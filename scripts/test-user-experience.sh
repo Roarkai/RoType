@@ -13,7 +13,9 @@ translation_client="$repo_dir/Squirrel/sources/RoTypeTranslationClient.swift"
 
 plutil -extract LSUIElement raw "$info_plist" | grep -qx true
 plutil -extract CFBundleIconName raw "$info_plist" | grep -qx Rime
-! plutil -extract NSMicrophoneUsageDescription raw "$info_plist" >/dev/null 2>&1
+plutil -extract NSMicrophoneUsageDescription raw "$info_plist" >/dev/null
+plutil -extract NSMicrophoneUsageDescription raw "$repo_dir/Squirrel/resources/Info.plist" >/dev/null
+grep -q 'com.apple.security.device.audio-input' "$repo_dir/Squirrel/resources/Squirrel.entitlements"
 grep -q 'xcrun actool' "$repo_dir/scripts/build-app.sh"
 grep -q 'Squirrel/Rime.icon' "$repo_dir/scripts/build-app.sh"
 grep -Fq 'private let titles = ["输入法", "本地翻译"]' "$setup_view"
@@ -43,7 +45,25 @@ grep -q 'im.roarkai.inputmethod.Luoke.helper' "$translation_service"
 grep -q 'return .settingsHelper' "$translation_service"
 grep -q 'generation <= latest' "$translation_service"
 grep -q 'Apple 可能收集不含原文和译文' "$privacy_view"
-[[ ! -f "$repo_dir/Sources/RoTypeApp/VoiceSettingsPane.swift" ]]
+[[ -f "$repo_dir/Sources/RoTypeApp/VoiceSettingsPane.swift" ]]
+# Let macOS render R using the same native badge metadata as ABC's Primary=A.
+/usr/libexec/PlistBuddy -c \
+  'Print :ComponentInputModeDict:tsInputModeListKey:im.roarkai.inputmethod.Luoke.Hans:TISIconLabels:Primary' \
+  "$repo_dir/Squirrel/resources/Info.plist" | grep -qx R
+# Persistent intent is not the runtime state: maintenance must never turn the user's switch off.
+grep -q 'toggleStyle(.switch)' "$repo_dir/Sources/RoTypeApp/VoiceSettingsPane.swift"
+grep -q 'get: { activation.requested }' "$repo_dir/Sources/RoTypeApp/VoiceSettingsPane.swift"
+! grep -q 'forKey: "voice.enabled"' "$repo_dir/Sources/RoTypeApp/VoiceInputController.swift"
+grep -q 'pauseForModelMaintenance()' "$repo_dir/Sources/RoTypeApp/VoiceSettingsPane.swift"
+# An enabled microphone must not disable model selection or repair controls.
+! grep -q '.disabled(voice.enabled' "$repo_dir/Sources/RoTypeApp/VoiceSettingsPane.swift"
+[[ -f "$repo_dir/VoiceRuntime/Package.resolved" ]]
+grep -q 'fromModelDirectory' "$repo_dir/VoiceRuntime/Sources/RoTypeVoiceWorker/main.swift"
+grep -q 'SecStaticCodeCheckValidity' "$repo_dir/Sources/RoTypeApp/VoiceWorkerClient.swift"
+# Consumed Fn events cannot be inferred from global flags; native insertion is not AX writing.
+! grep -q 'CGEventSource.flagsState' "$repo_dir/Sources/RoTypeApp/VoiceInputController.swift"
+! grep -q 'AXUIElementSetAttributeValue' "$repo_dir/Sources/RoTypeApp/VoiceInputTarget.swift"
+grep -q 'client.insertText(text' "$repo_dir/Squirrel/sources/RoTypeVoiceServer.swift"
 [[ ! -f "$repo_dir/Sources/RoTypeApp/VoiceModelManager.swift" ]]
 grep -q 'NSXPCConnection(machServiceName:' "$translation_client"
 grep -q 'IsSecureEventInputEnabled' "$repo_dir/Squirrel/sources/SquirrelInputController.swift"
@@ -67,12 +87,13 @@ if grep -Eq 'CGEvent\(|\.post\(tap:' "$translation_service" "$translation_client
   exit 1
 fi
 
-if rg -n 'WhisperKit|WhisperTranscriber|DoubaoSpeech|SpeechTranscrib|AudioRecorder|HotKeyMonitor|VoiceHotKey|TextInserter|StatusPanel' \
+if rg -n 'WhisperKit|WhisperTranscriber|DoubaoSpeech|SpeechTranscrib|\bAudioRecorder\b|HotKeyMonitor|VoiceHotKey|TextInserter|StatusPanel' \
   "$repo_dir/Package.swift" "$repo_dir/Sources" "$repo_dir/Tests" "$repo_dir/Resources"; then
   echo "FAIL: removed Whisper voice implementation remains in the product"
   exit 1
 fi
-! grep -q 'com.apple.security.device.audio-input' "$repo_dir/Resources/RoTypeApp.entitlements"
+grep -q 'com.apple.security.device.audio-input' "$repo_dir/Resources/RoTypeApp.entitlements"
+! grep -q 'com.apple.security.device.audio-input' "$repo_dir/Resources/TranslationWorker.entitlements"
 ! grep -q 'com.apple.security.network.client' "$repo_dir/Resources/RoTypeApp.entitlements"
 ! grep -q 'AudioRecorder\|HotKeyMonitor\|WhisperTranscriber' "$repo_dir/Squirrel/sources/SquirrelInputController.swift"
 grep -q '洛克输入法设置.app' "$repo_dir/Squirrel/sources/SquirrelInputController.swift"
@@ -83,13 +104,29 @@ grep -q 'CommandLine.arguments.contains("--show-settings")' "$repo_dir/Sources/R
 ! grep -q 'openSettingsIfNeeded' "$repo_dir/Sources/RoTypeApp/AppDelegate.swift"
 
 grep -q 'LSMultipleInstancesProhibited' "$info_plist"
-grep -q 'tsInputModePaletteIconFileKey' "$repo_dir/Squirrel/resources/Info.plist"
-grep -A1 'tsInputModePaletteIconFileKey' "$repo_dir/Squirrel/resources/Info.plist" | grep -q 'rotypeMenu16Template.pdf'
+# Build 49's labels-only registration produced the generic IME icon after menu refresh.
+# Keep explicit R artwork. The 22 pt page is checked through the real system image transform.
+for key in tsInputModeAlternateMenuIconFileKey tsInputModeMenuIconFileKey tsInputModePaletteIconFileKey; do
+  grep -A1 "$key" "$repo_dir/Squirrel/resources/Info.plist" | grep -q 'rotypeABC22SmallRTemplate.pdf'
+done
+grep -q 'focusEffectDisabled' "$repo_dir/Sources/RoTypeApp/SettingsSidebar.swift"
+! grep -q 'focusable(false)' "$repo_dir/Sources/RoTypeApp/SettingsSidebar.swift"
+grep -q 'https://type.roarkist.com/' "$repo_dir/Sources/RoTypeApp/SettingsSidebar.swift"
+! grep -q '本地处理 · 不自动发送' "$repo_dir/Sources/RoTypeApp/SettingsSidebar.swift"
 grep -q 'id="luoke-r"' "$repo_dir/Squirrel/Rime.icon/Assets/logo.svg"
 icon_fixture=$(mktemp -d)/rotypeTemplate.pdf
 xcrun swift "$repo_dir/scripts/generate-menu-icon.swift" "$icon_fixture"
 xcrun swift "$repo_dir/Tests/MenuIcon/test-menu-icon.swift" "$icon_fixture"
+xcrun clang -fobjc-arc -framework AppKit "$repo_dir/Tests/MenuIcon/SystemRendererProbe.m" \
+  -o "${icon_fixture:h}/system-renderer-probe"
+renderer_result=0
+"${icon_fixture:h}/system-renderer-probe" "$icon_fixture" || renderer_result=$?
+if [[ "$renderer_result" == 77 ]]; then
+  print 'SKIP: private diagnostic renderer unavailable on this OS; no system-geometry claim.'
+elif [[ "$renderer_result" != 0 ]]; then
+  exit "$renderer_result"
+fi
 rm -R "${icon_fixture:h}"
 grep -q 'if event.type == .keyDown' "$repo_dir/Squirrel/sources/SquirrelInputController.swift"
 
-print "Keyboard, translation, icon, and voice removal checks passed."
+print "Keyboard, translation, icon, native voice and legacy retirement checks passed."

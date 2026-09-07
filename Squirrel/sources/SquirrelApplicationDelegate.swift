@@ -23,6 +23,7 @@ final class SquirrelApplicationDelegate: NSObject, NSApplicationDelegate {
   var panel: SquirrelPanel?
   var enableNotifications = false
   private var verificationRequestID: String?
+  private let voiceServer = RoTypeVoiceServer()
 
   func applicationWillFinishLaunching(_ notification: Notification) {
     panel = SquirrelPanel(position: .zero)
@@ -192,13 +193,14 @@ final class SquirrelApplicationDelegate: NSObject, NSApplicationDelegate {
     )
   }
 
-  func inputControllerDidActivate(_: SquirrelInputController) {}
+  func inputControllerDidActivate(_ controller: SquirrelInputController) { voiceServer.activate(controller) }
 
   func inputControllerDidHandleKeyDown(_: SquirrelInputController) {
+    voiceServer.handledInput()
     postControllerStatus(requestID: verificationRequestID)
   }
 
-  func inputControllerDidDeactivate(_: SquirrelInputController) {}
+  func inputControllerDidDeactivate(_ controller: SquirrelInputController) { voiceServer.deactivate(controller) }
 
   @objc private func controllerVerificationRequested(_ notification: Notification) {
     guard notification.object as? String == RoTypeControllerBridge.sourceIdentifier,

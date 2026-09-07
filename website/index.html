@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>洛克输入法 RoType | Mac 中文、双语候选与本地语音</title>
+  <meta name="description" content="洛克输入法：全拼、小鹤双拼、中英互译与本地语音。Tab 填入译文，按住 Fn 录音。适用于 Apple Silicon Mac。">
+  <link rel="canonical" href="https://type.roarkist.com/">
+  <meta property="og:type" content="website"><meta property="og:locale" content="zh_CN">
+  <meta property="og:title" content="洛克输入法 | 中文输入，不止于打字。">
+  <meta property="og:description" content="全拼、双拼、双语候选与本地语音，留在你熟悉的 Mac 输入框里。">
+  <meta property="og:url" content="https://type.roarkist.com/"><meta property="og:image" content="https://type.roarkist.com/assets/social-v3.png">
+  <meta name="twitter:card" content="summary_large_image"><meta name="color-scheme" content="light dark">
+  <link rel="icon" href="/assets/icon.png"><link rel="apple-touch-icon" href="/assets/icon.png">
+  <link rel="stylesheet" href="/style.css?v=3">
+</head>
+<body>
+<a class="skip" href="#main">跳到正文</a>
+<header class="header wrap">
+  <a class="brand" href="/"><span class="brand-mark" aria-hidden="true">R</span><span>洛克输入法</span></a>
+  <nav class="site-links" aria-label="外部链接">
+    <a class="icon-link" href="https://github.com/Roarkai/RoType" target="_blank" rel="noopener noreferrer" aria-label="GitHub 仓库" title="GitHub 仓库"><img src="/assets/icons/brand-github.svg" width="21" height="21" alt=""></a>
+    <a class="icon-link" href="https://roarkist.com" target="_blank" rel="noopener noreferrer" aria-label="个人站点 Roarkist" title="个人站点 · roarkist.com"><img src="/assets/icons/world.svg" width="21" height="21" alt=""></a>
+  </nav>
+</header>
+<main id="main">
+  <section class="hero wrap" aria-labelledby="hero-title">
+    <div class="hero-copy"><p class="eyebrow">为你的 Mac，多一种表达。</p><h1 id="hero-title">中文输入，<br>不止于打字。</h1><p class="hero-description">全拼、双拼、双语候选与本地语音，<br class="desktop-break">留在你熟悉的输入框里。</p><div class="hero-actions"><a class="button" href="/downloads/RoType-0.0.1-build48-arm64.pkg" download>下载 macOS 版 <span aria-hidden="true">↓</span></a></div></div>
+    <figure class="hero-visual"><picture><source media="(prefers-color-scheme: dark)" srcset="/assets/settings-dark.webp"><img id="hero-image" src="/assets/settings-light.webp" alt="洛克原生设置界面，展示五项候选、本地翻译和本地语音入口" width="1760" height="1320" fetchpriority="high"></picture><figcaption>原生 macOS 界面。设置预览使用演示状态。</figcaption></figure>
+  </section>
+  <div class="release-line wrap" aria-label="版本与系统要求">
+    <a href="/releases/">Build 48 · 预览版 <span aria-hidden="true">↗</span></a>
+    <span>Apple Silicon · macOS 14+</span>
+    <span>已签名与公证</span>
+  </div>
+  <section class="showcase wrap" aria-label="输入方式">
+    <figure class="feature keyboard-feature">
+      <div class="product-shot"><img src="/assets/candidates-user.webp" width="700" height="138" loading="lazy" alt="中文候选「简洁黑白风格」，下方译文为 Simple black and white style，支持 Tab 提交"></div>
+      <figcaption><h2>键盘输入</h2><p>全拼 · 小鹤双拼 · 中英互译</p><span class="shortcut"><kbd>Tab</kbd> 填入译文</span></figcaption>
+    </figure>
+    <figure class="feature voice-feature">
+      <div class="product-shot"><img src="/assets/voice-user.webp" width="376" height="71" loading="lazy" alt="语音结果提示：已填入，未发送"></div>
+      <figcaption><h2>语音输入</h2><p>本地识别，不上传录音。</p><span class="shortcut"><kbd>Fn</kbd> 按住录音，松开填入</span></figcaption>
+    </figure>
+  </section>
+  <section class="installation wrap" id="install" aria-labelledby="install-title">
+    <div class="install-heading"><h2 id="install-title">安装</h2><a class="text-link" href="/downloads/RoType-0.0.1-build48-arm64.pkg.sha256">SHA-256 校验</a></div>
+    <div class="install-body">
+      <ol class="install-steps">
+        <li><h3>打开安装包</h3><p>跟随 macOS 安装器完成安装。</p></li>
+        <li><h3>添加输入法</h3><p>系统设置 → 键盘 → 文本输入「编辑」→ ＋ → 简体中文 → 洛克输入法。</p></li>
+        <li><h3>选中洛克</h3><p>从菜单栏切换，输入 <code>nihao</code>。翻译和语音在输入法设置中准备。</p></li>
+      </ol>
+      <details class="requirements" open><summary>系统与权限</summary><p>动态翻译需 macOS 26；macOS 14/15 尚未完成全面实机验收。语音需单独下载模型，并授权麦克风与辅助功能。目标变化或连接不可用时，保留文字，不强行填入。</p></details>
+    </div>
+  </section>
+</main>
+<footer class="footer wrap"><span>© 2026 Roarkist</span><nav aria-label="页脚导航"><a href="/releases/">版本</a><a href="/privacy/">隐私</a><a href="/downloads/RoType-build48-source.tar.gz">源码</a><a href="https://github.com/Roarkai/RoType/issues">反馈</a></nav></footer>
+</body></html>

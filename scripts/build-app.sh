@@ -2,6 +2,7 @@
 set -euo pipefail
 
 repo_dir=${0:A:h:h}
+source "$repo_dir/scripts/codesign-with-retry.sh"
 dist_dir="$repo_dir/dist"
 app_dir="$dist_dir/洛克输入法设置.app"
 staging_app_dir="$dist_dir/.洛克输入法设置.app.build"
@@ -41,13 +42,26 @@ trap cleanup_staging_app EXIT
 cd "$repo_dir"
 swift build -c release --product RoTypeApp
 swift build -c release --product RoTypeTranslationService
+zsh "$repo_dir/scripts/build-voice-worker.sh"
+voice_release="$repo_dir/.build/voice-worker/Build/Products/Release"
 
 mkdir -p "$dist_dir"
 remove_generated_app "$legacy_app_dir"
 remove_generated_app "$staging_app_dir"
 remove_generated_app "$translation_service"
 remove_generated_app "$staging_translation_service"
-mkdir -p "$contents_dir/MacOS" "$contents_dir/Resources"
+mkdir -p "$contents_dir/MacOS" "$contents_dir/Resources" "$contents_dir/Helpers"
+cp "$voice_release/RoTypeVoiceWorker" "$contents_dir/Helpers/RoTypeVoiceWorker"
+# The standalone worker's Bundle.main is its executable directory, not the host app.
+for bundle in "$voice_release"/*.bundle(N); do
+  cp -R "$bundle" "$contents_dir/Helpers/"
+done
+mkdir -p "$contents_dir/Resources/Licenses/Voice"
+for checkout in "$repo_dir/.build/voice-worker/SourcePackages/checkouts"/*(/N); do
+  for license in "$checkout"/(LICENSE*|NOTICE*)(N.); do
+    cp "$license" "$contents_dir/Resources/Licenses/Voice/${checkout:t}-${license:t}"
+  done
+done
 cp "$release_dir/RoTypeApp" "$contents_dir/MacOS/LuokeInput"
 cp "$repo_dir/Resources/Info.plist" "$contents_dir/Info.plist"
 icon_info=$(mktemp)
@@ -85,13 +99,25 @@ codesign \
   --entitlements "$repo_dir/Resources/RoTypeApp.entitlements" \
   --sign "$signing_identity" \
   "$staging_app_dir"
+# Bootstrap nested resource bundles first, then restore the worker's role and
+# seal the host WITHOUT --deep (which would replace the explicit worker ID).
+codesign --force --options runtime --timestamp \
+  --identifier im.roarkai.inputmethod.Luoke.asr \
+  --entitlements "$repo_dir/Resources/TranslationWorker.entitlements" \
+  --sign "$signing_identity" "$contents_dir/Helpers/RoTypeVoiceWorker"
+codesign --force --options runtime --timestamp \
+  --entitlements "$repo_dir/Resources/RoTypeApp.entitlements" \
+  --sign "$signing_identity" "$staging_app_dir"
+codesign --verify --strict \
+  -R '=anchor apple generic and identifier "im.roarkai.inputmethod.Luoke.asr" and certificate leaf[subject.OU] = "DF7J2VBQD8"' \
+  "$contents_dir/Helpers/RoTypeVoiceWorker"
 cp "$release_dir/RoTypeTranslationService" "$staging_translation_service"
 codesign \
   --force \
   --identifier im.roarkai.inputmethod.Luoke.translation \
   --options runtime \
   --timestamp \
-  --entitlements "$repo_dir/Resources/RoTypeApp.entitlements" \
+  --entitlements "$repo_dir/Resources/TranslationWorker.entitlements" \
   --sign "$signing_identity" \
   "$staging_translation_service"
 remove_generated_app "$app_dir"
@@ -99,4 +125,6 @@ mv "$staging_app_dir" "$app_dir"
 mv "$staging_translation_service" "$translation_service"
 trap - EXIT
 print "Signed with: $signing_identity"
+"$app_dir/Contents/Helpers/RoTypeVoiceWorker" --self-test
+codesign --verify --deep --strict "$app_dir"
 print "Built: $app_dir"

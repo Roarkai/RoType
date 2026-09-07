@@ -1,4 +1,5 @@
 #import <Foundation/Foundation.h>
+#import "RoTypeDictationXPCProtocol.h"
 
 NS_ASSUME_NONNULL_BEGIN
 
@@ -36,6 +37,12 @@ NS_ASSUME_NONNULL_BEGIN
 - (void)controllerInputGenerationWithReply:(void (^)(int64_t generation,
                                                        NSError * _Nullable error))reply
     NS_SWIFT_NAME(controllerInputGeneration(reply:));
+
+@optional
+// Rendezvous only: registration is input-method-only, discovery helper-only.
+- (void)registerDictationEndpoint:(NSXPCListenerEndpoint *)endpoint;
+- (void)dictationEndpointWithReply:(void (^)(NSXPCListenerEndpoint * _Nullable endpoint))reply
+    NS_SWIFT_NAME(dictationEndpoint(reply:));
 @end
 
 NS_ASSUME_NONNULL_END

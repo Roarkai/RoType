@@ -11,6 +11,7 @@ temporary=$(mktemp -d)
 probe="$temporary/RoTypeXPCProbe"
 agent="$temporary/agent.plist"
 bootstrap_attempted=false
+publisher_pid=""
 
 wait_for_removal() {
   local attempt
@@ -25,6 +26,10 @@ wait_for_removal() {
 cleanup() {
   local result=$?
   trap - EXIT
+  if [[ -n "$publisher_pid" ]]; then
+    kill "$publisher_pid" 2>/dev/null || true
+    wait "$publisher_pid" 2>/dev/null || true
+  fi
   if $bootstrap_attempted; then
     /bin/launchctl bootout "gui/$uid/$service_name" >/dev/null 2>&1 || true
     if ! wait_for_removal; then
@@ -84,18 +89,48 @@ if [[ "${1:-}" == "--fail-after-handshake" ]]; then
   print -u2 'Deliberate failure to verify cleanup after starting the worker.'
   exit 42
 fi
-codesign --force --sign - --identifier im.roarkai.inputmethod.Luoke "$probe"
-"$probe" translation connection-rejected "$service_name"
-"$probe" candidate connection-rejected "$service_name"
+# Keep executable vnodes separate; repeatedly re-signing one path can leave
+# the previous process's cached code identity visible during the next launch.
+unsigned_probe="$temporary/UnsignedProbe"
+helper_probe="$temporary/SettingsProbe"
+cp "$probe" "$unsigned_probe"
+cp "$probe" "$helper_probe"
+codesign --force --sign - --identifier im.roarkai.inputmethod.Luoke "$unsigned_probe"
+"$unsigned_probe" translation connection-rejected "$service_name"
+"$unsigned_probe" candidate connection-rejected "$service_name"
 codesign --force --identifier im.roarkai.inputmethod.Luoke.helper --options runtime \
-  --timestamp --sign "$signing_identity" "$probe"
-"$probe" verification accepted "$service_name"
-"$probe" translation operation-rejected "$service_name"
-"$probe" candidate operation-rejected "$service_name"
+  --timestamp --sign "$signing_identity" "$helper_probe"
+"$helper_probe" verification accepted "$service_name"
+"$helper_probe" translation operation-rejected "$service_name"
+"$helper_probe" candidate operation-rejected "$service_name"
+
+# Exercise endpoint serialization, both peer identities, helper publication denial,
+# and input-method discovery denial without inserting into any desktop application.
+xcrun swiftc -import-objc-header "$protocol_header" \
+  "$repo_dir/Tests/XPCIntegration/DictationProbe.swift" -o "$temporary/VoicePublisher"
+cp "$temporary/VoicePublisher" "$temporary/VoiceHelper"
+codesign --force --options runtime --timestamp --identifier im.roarkai.inputmethod.Luoke \
+  --sign "$signing_identity" "$temporary/VoicePublisher"
+codesign --force --options runtime --timestamp --identifier im.roarkai.inputmethod.Luoke.helper \
+  --sign "$signing_identity" "$temporary/VoiceHelper"
+"$temporary/VoicePublisher" publish "$service_name" "$temporary/voice-ready" &
+publisher_pid=$!
+for attempt in {1..100}; do
+  [[ -f "$temporary/voice-ready" ]] && break
+  kill -0 "$publisher_pid"
+  sleep 0.05
+done
+[[ -f "$temporary/voice-ready" ]]
+sleep 0.2
+"$temporary/VoicePublisher" denied "$service_name"
+"$temporary/VoiceHelper" helper "$service_name"
+kill "$publisher_pid"
+wait "$publisher_pid" 2>/dev/null || true
+publisher_pid=""
 /bin/sleep 2
 if /bin/launchctl print "gui/$uid/$service_name" | /usr/bin/grep -q 'pid = '; then
   print -u2 'Translation fixture did not exit after becoming idle.'
   exit 1
 fi
-"$probe" verification accepted "$service_name"
+"$helper_probe" verification accepted "$service_name"
 print 'Isolated translation XPC caller-role, idle-exit, and relaunch checks passed.'

@@ -1,5 +1,7 @@
 # Third-party notices
 
+The optional native voice worker uses [MLX Audio Swift](https://github.com/Blaizzy/mlx-audio-swift) (MIT, revision `bf14ae0c26e4e85553dd989571cae29d70fa6735`), MLX Swift 0.31.3 (MIT), MLX Swift LM 3.31.3 (MIT), and their locked dependencies listed in `VoiceRuntime/Package.resolved`. Their license and notice files are included in the settings app at `Contents/Resources/Licenses/Voice`. Qwen3-ASR 0.6B/1.7B MLX 8-bit weights are optional user downloads under Apache-2.0, not bundled with the installer. Model revisions and SHA-256 hashes are pinned in `Sources/RoTypeCore/VoiceModel.swift`. No Python runtime or cloud ASR service is included.
+
 `Squirrel/` vendors Squirrel 1.1.2 at upstream commit `876adebaf2f612951dcdca8a591de65401222b9a` and carries RoType menu integration changes. Squirrel and RoType's modified Squirrel frontend are distributed under the GNU General Public License v3.0; the upstream license is preserved at `Squirrel/LICENSE.txt`. Its pinned librime and plum dependencies retain their upstream license terms. The upstream Sparkle source remains in the imported source tree for history, but RoType does not link, embed, or download Sparkle and does not consume the Squirrel update feed.
 
 The RoType Rime schema imports the Luna Pinyin dictionary supplied inside the signed input method bundle. RoType factory schemas and Lua modules are also stored in the bundle's `Contents/SharedSupport`; per-user learning data remains under `~/Library/Rime`.

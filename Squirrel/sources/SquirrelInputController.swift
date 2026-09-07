@@ -37,6 +37,7 @@ final class SquirrelInputController: IMKInputController {
   private var candidateTranslation = RoTypeCandidateTranslationSession()
   private var lastTranslationError: String?
   private let inputModePanel = RoTypeInputModePanel()
+  var voiceClient: IMKTextInput? { preedit.isEmpty && !IsSecureEventInputEnabled() ? client : nil }
 
   // swiftlint:disable:next cyclomatic_complexity
   override func handle(_ event: NSEvent!, client sender: Any!) -> Bool {

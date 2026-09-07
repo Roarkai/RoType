@@ -20,6 +20,7 @@ final class TranslationCoordinator {
     private var latestGenerations: [SessionKey: Int64] = [:]
     private var tasks: [SessionKey: Task<Void, Never>] = [:]
     private var controllerInputGeneration: Int64 = 0
+    let dictationEndpoints = DictationEndpointRegistry()
 
     init(backend: any DynamicTextTranslating = DynamicTranslatorFactory.make()) {
         self.backend = backend
@@ -85,6 +86,7 @@ final class TranslationCoordinator {
     }
 
     func removeConnection(_ connectionID: UUID) {
+        dictationEndpoints.remove(owner: connectionID)
         let keys = latestGenerations.keys.filter { $0.connectionID == connectionID }
         for key in keys {
             tasks.removeValue(forKey: key)?.cancel()
@@ -161,9 +163,9 @@ final class TranslationXPCService: NSObject, RoTypeTranslationXPCProtocol {
         }
     }
 
-    private let connectionID = UUID()
-    private let coordinator: TranslationCoordinator
-    private let role: TranslationClientRole
+    let connectionID = UUID()
+    let coordinator: TranslationCoordinator
+    let role: TranslationClientRole
 
     init(coordinator: TranslationCoordinator, role: TranslationClientRole) {
         self.coordinator = coordinator

@@ -18,6 +18,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             object: nil
         )
 
+        VoiceInputController.shared.restore()
+
         if CommandLine.arguments.contains("--show-settings") {
             openSettings()
         }
@@ -29,6 +31,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationWillTerminate(_ notification: Notification) {
+        VoiceInputController.shared.shutdown()
         DistributedNotificationCenter.default().removeObserver(self)
     }
 

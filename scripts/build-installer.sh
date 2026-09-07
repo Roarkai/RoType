@@ -3,6 +3,7 @@ set -euo pipefail
 export COPYFILE_DISABLE=1
 
 repo_dir=${0:A:h:h}
+source "$repo_dir/scripts/codesign-with-retry.sh"
 version=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$repo_dir/Resources/Info.plist")
 architecture=$(uname -m)
 dist_dir="$repo_dir/dist"
@@ -103,7 +104,7 @@ done
 # for light, dark, and wallpaper-backed menu bars.
 /bin/cp -X "$repo_dir/Resources/AppIcon.icns" "$staged_input_method/Contents/Resources/Rime.icns"
 xcrun swift "$repo_dir/scripts/generate-menu-icon.swift" \
-  "$staged_input_method/Contents/Resources/rotypeMenu16Template.pdf"
+  "$staged_input_method/Contents/Resources/rotypeABC22SmallRTemplate.pdf"
 cp -X "$repo_dir/Installer/im.roarkai.inputmethod.Luoke.translation.plist" "$staging_dir/Library/LaunchAgents/"
 /bin/chmod -R u+w "$staging_dir"
 /usr/bin/xattr -cr "$staging_dir"
@@ -137,9 +138,13 @@ codesign \
   --entitlements "$repo_dir/Squirrel/resources/Squirrel.entitlements" \
   --sign "$signing_identity" \
   "$staged_input_method"
+codesign --force --options runtime --timestamp \
+  --identifier im.roarkai.inputmethod.Luoke.asr \
+  --entitlements "$repo_dir/Resources/TranslationWorker.entitlements" \
+  --sign "$signing_identity" \
+  "$staged_input_method/Contents/Helpers/洛克输入法设置.app/Contents/Helpers/RoTypeVoiceWorker"
 codesign \
   --force \
-  --deep \
   --options runtime \
   --timestamp \
   --entitlements "$repo_dir/Resources/RoTypeApp.entitlements" \
@@ -150,7 +155,7 @@ codesign \
   --identifier im.roarkai.inputmethod.Luoke.translation \
   --options runtime \
   --timestamp \
-  --entitlements "$repo_dir/Resources/RoTypeApp.entitlements" \
+  --entitlements "$repo_dir/Resources/TranslationWorker.entitlements" \
   --sign "$signing_identity" \
   "$staged_input_method/Contents/Helpers/RoTypeTranslationService"
 codesign \
@@ -160,6 +165,14 @@ codesign \
   --entitlements "$repo_dir/Squirrel/resources/Squirrel.entitlements" \
   --sign "$signing_identity" \
   "$staged_input_method"
+
+codesign --verify --deep --strict "$staged_input_method"
+zsh "$repo_dir/scripts/test-voice-permissions.sh" "$staged_input_method"
+voice_worker="$staged_input_method/Contents/Helpers/洛克输入法设置.app/Contents/Helpers/RoTypeVoiceWorker"
+codesign --verify --strict \
+  -R '=anchor apple generic and identifier "im.roarkai.inputmethod.Luoke.asr" and certificate leaf[subject.OU] = "DF7J2VBQD8"' \
+  "$voice_worker"
+"$voice_worker" --self-test
 
 # Component packages relocate matching bundle identifiers by default. RoType
 # deliberately migrates legacy per-user installs after the payload is placed,

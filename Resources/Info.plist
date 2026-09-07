@@ -23,7 +23,9 @@
 	<key>CFBundleShortVersionString</key>
 	<string>0.0.1</string>
 	<key>CFBundleVersion</key>
-	<string>38</string>
+	<string>52</string>
+    <key>NSMicrophoneUsageDescription</key>
+    <string>仅在你按住 Fn 时录音，在本机转为文字；音频不上传云端。</string>
     <key>LSMinimumSystemVersion</key>
     <string>14.0</string>
     <key>LSMultipleInstancesProhibited</key>

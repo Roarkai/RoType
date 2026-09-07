@@ -3,10 +3,11 @@ import RoTypeCore
 import SwiftUI
 @preconcurrency import Translation
 
-private enum SettingsSection: String, CaseIterable, Identifiable {
+enum SettingsSection: String, CaseIterable, Identifiable {
     case overview = "概览"
     case candidates = "双语候选"
     case translation = "本地翻译"
+    case voice = "本地语音"
     case privacy = "隐私与诊断"
 
     var id: String { rawValue }
@@ -16,6 +17,7 @@ private enum SettingsSection: String, CaseIterable, Identifiable {
         case .overview: "rectangle.grid.2x2"
         case .candidates: "character.bubble"
         case .translation: "translate"
+        case .voice: "waveform"
         case .privacy: "lock.shield"
         }
     }
@@ -38,7 +40,8 @@ struct RoTypeSettingsRootView: View {
                 OnboardingView(settings: settings, step: $onboardingStep)
             }
         }
-        .frame(minWidth: 680, minHeight: 520)
+        .frame(minWidth: 760, minHeight: 560)
+        .modifier(SettingsSurface())
         .task { await settings.refreshTranslationAvailability() }
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
             Task { await settings.refreshTranslationAvailability() }
@@ -61,14 +64,14 @@ private struct OnboardingView: View {
             HStack(spacing: 8) {
                 ForEach(titles.indices, id: \.self) { index in
                     Capsule()
-                        .fill(index <= step ? Color.accentColor : Color.secondary.opacity(0.18))
+                        .fill(index <= step ? CossStyle.text : CossStyle.border)
                         .frame(height: 5)
                 }
             }
             .padding(.horizontal, 32)
             .padding(.top, 24)
 
-            Group {
+            ScrollView {
                 if step == 0 {
                     InputSourceSetupPane(manager: inputSource, settings: settings)
                 } else {
@@ -172,7 +175,7 @@ private struct InputSourceSetupPane: View {
                             : "keyboard"
                     )
                         .font(.title2)
-                        .foregroundStyle(keyboardConfigured ? Color.green : Color.accentColor)
+                        .foregroundStyle(keyboardConfigured ? Color.green : CossStyle.muted)
                         .frame(width: 34)
                     VStack(alignment: .leading, spacing: 4) {
                         Text(keyboardConfigured ? "输入法已配置" : "需要启用并验证")
@@ -203,8 +206,7 @@ private struct InputSourceSetupPane: View {
                     .font(.callout)
                     .foregroundStyle(.secondary)
             }
-            TextField("在这里试打 nihao，空格选择中文", text: $verificationText)
-                .textFieldStyle(.roundedBorder)
+            CossTextField("在这里试打 nihao，空格选择中文", text: $verificationText)
             HStack {
                 Button("重新检查") { manager.refresh() }
                 Button("打开键盘设置") { manager.openKeyboardSettings() }
@@ -221,27 +223,28 @@ private struct InputSourceSetupPane: View {
     }
 }
 
-private struct SettingsHomeView: View {
+struct SettingsHomeView: View {
     @ObservedObject var settings: RoTypeSettings
-    @State private var selection: SettingsSection? = .overview
+    @State var selection: SettingsSection? = .overview
 
     var body: some View {
-        NavigationSplitView {
-            List(SettingsSection.allCases, selection: $selection) { section in
-                Label(section.rawValue, systemImage: section.icon).tag(section)
-            }
-            .navigationSplitViewColumnWidth(min: 170, ideal: 190)
-        } detail: {
+        HStack(spacing: 0) {
+            SettingsSidebar(items: SettingsSection.allCases.map { ($0.rawValue, $0.icon) },
+                            selection: Binding(get: { (selection ?? .overview).rawValue },
+                                               set: { selection = SettingsSection(rawValue: $0) }))
+            Divider()
             ScrollView {
                 Group {
                     switch selection ?? .overview {
                     case .overview: OverviewPane(settings: settings)
                     case .candidates: CandidateSettingsPane()
                     case .translation: TranslationSettingsPane(settings: settings)
+                    case .voice: VoiceSettingsPane()
                     case .privacy: PrivacyPane()
                     }
                 }
-                .padding(28)
+                .frame(maxWidth: 660, alignment: .topLeading)
+                .padding(32)
                 .frame(maxWidth: .infinity, alignment: .topLeading)
             }
             .navigationTitle(selection?.rawValue ?? "洛克输入法设置")
@@ -256,13 +259,15 @@ private struct OverviewPane: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
             PaneTitle(
-                "洛克输入法",
+                "概览",
                 detail: translationSummary
             )
             SettingsCard {
                 FeatureRow(icon: "number", title: "五项候选", detail: "每页最多 5 项；译文独立显示，Tab 直接上屏")
                 Divider()
                 FeatureRow(icon: "translate", title: "本地翻译", detail: "使用 Apple 系统语言能力生成动态候选")
+                Divider()
+                FeatureRow(icon: "waveform", title: "本地语音", detail: "选中洛克自动准备，按住 Fn 录音；松开后识别并填入")
             }
             InputSourceSetupPane(manager: inputSource, settings: settings, compact: true)
             Button("重新运行配置向导") { settings.restartOnboarding() }
@@ -284,7 +289,7 @@ private extension OverviewPane {
 private struct CandidateSettingsPane: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
-            PaneTitle("双语候选", detail: "保持翻译候选容易选择，同时不让原始拼音挤占常用中文候选。")
+            PaneTitle("双语候选", detail: "中文候选与译文各自独立，保持熟悉的输入节奏。")
             SettingsCard {
                 FeatureRow(icon: "5.circle", title: "紧凑候选", detail: "每页最多 5 项，支持键盘与滚轮翻页")
                 Divider()
@@ -301,7 +306,7 @@ private struct TranslationSettingsPane: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
-            PaneTitle("本地中英翻译", detail: "动态候选使用 Apple 简体中文与英文语言能力。")
+            PaneTitle("本地翻译", detail: "简体中文与英文互译，由 Apple 设备端语言能力提供。")
             if #available(macOS 26.0, *) {
                 TranslationPackView(settings: settings)
             } else {
@@ -338,6 +343,7 @@ private struct TranslationPackView: View {
                     configuration.invalidate()
                 }
                 .disabled(shouldPrepare)
+                .buttonStyle(CossButtonStyle(primary: true))
             }
         }
         .translationTask(configuration) { session in

@@ -79,6 +79,9 @@
 		C10A00012F20000100A00005 /* RoTypeTranslationPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = C10A00022F20000100A00005; };
 		C10A00012F20000100A00009 /* RoTypeInputModePanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = C10A00022F20000100A00009; };
 		C10A00012F20000100A00010 /* RoTypeCandidateLearningMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = C10A00022F20000100A00010; };
+		C10A00012F20000100A00011 /* RoTypeVoiceServer.swift in Sources */ = {isa = PBXBuildFile; fileRef = C10A00022F20000100A00011; };
+		C10A00012F20000100A00012 /* VoiceCommitTicket.swift in Sources */ = {isa = PBXBuildFile; fileRef = C10A00022F20000100A00012; };
+		C10A00012F20000100A00013 /* VoiceInsertionPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = C10A00022F20000100A00013; };
 		C10A00012F20000100A00003 /* RoTypeProcessTrust.swift in Sources */ = {isa = PBXBuildFile; fileRef = C10A00022F20000100A00003 /* RoTypeProcessTrust.swift */; };
 		C10A00012F20000100A00001 /* RoTypeTranslationClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = C10A00022F20000100A00001 /* RoTypeTranslationClient.swift */; };
 		B39771232BECEA150093A49B /* MacOSKeyCodes.swift in Sources */ = {isa = PBXBuildFile; fileRef = B39771222BECEA150093A49B /* MacOSKeyCodes.swift */; };
@@ -289,6 +292,9 @@
 		C10A00022F20000100A00005 /* RoTypeTranslationPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = RoTypeTranslationPanel.swift; path = sources/RoTypeTranslationPanel.swift; sourceTree = "<group>"; };
 		C10A00022F20000100A00009 /* RoTypeInputModePanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = RoTypeInputModePanel.swift; path = sources/RoTypeInputModePanel.swift; sourceTree = "<group>"; };
 		C10A00022F20000100A00010 /* RoTypeCandidateLearningMenu.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = RoTypeCandidateLearningMenu.swift; path = sources/RoTypeCandidateLearningMenu.swift; sourceTree = "<group>"; };
+		C10A00022F20000100A00011 /* RoTypeVoiceServer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = RoTypeVoiceServer.swift; path = sources/RoTypeVoiceServer.swift; sourceTree = "<group>"; };
+		C10A00022F20000100A00012 /* VoiceCommitTicket.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = VoiceCommitTicket.swift; path = ../Sources/RoTypeCore/VoiceCommitTicket.swift; sourceTree = "<group>"; };
+		C10A00022F20000100A00013 /* VoiceInsertionPolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = VoiceInsertionPolicy.swift; path = ../Sources/RoTypeCore/VoiceInsertionPolicy.swift; sourceTree = "<group>"; };
 		C10A00022F20000100A00003 /* RoTypeProcessTrust.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = RoTypeProcessTrust.swift; path = sources/RoTypeProcessTrust.swift; sourceTree = "<group>"; };
 		C10A00022F20000100A00001 /* RoTypeTranslationClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = RoTypeTranslationClient.swift; path = sources/RoTypeTranslationClient.swift; sourceTree = "<group>"; };
 		B39771222BECEA150093A49B /* MacOSKeyCodes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = MacOSKeyCodes.swift; path = sources/MacOSKeyCodes.swift; sourceTree = "<group>"; };
@@ -332,6 +338,9 @@
 				C10A00022F20000100A00005 /* RoTypeTranslationPanel.swift */,
 				C10A00022F20000100A00009 /* RoTypeInputModePanel.swift */,
 				C10A00022F20000100A00010 /* RoTypeCandidateLearningMenu.swift */,
+				C10A00022F20000100A00011 /* RoTypeVoiceServer.swift */,
+				C10A00022F20000100A00012 /* VoiceCommitTicket.swift */,
+				C10A00022F20000100A00013 /* VoiceInsertionPolicy.swift */,
 				B39771222BECEA150093A49B /* MacOSKeyCodes.swift */,
 				B397712C2BEEB39D0093A49B /* InputSource.swift */,
 				B397712E2BEECBED0093A49B /* Main.swift */,
@@ -600,6 +609,9 @@
 				C10A00012F20000100A00005 /* RoTypeTranslationPanel.swift in Sources */,
 				C10A00012F20000100A00009 /* RoTypeInputModePanel.swift in Sources */,
 				C10A00012F20000100A00010 /* RoTypeCandidateLearningMenu.swift in Sources */,
+				C10A00012F20000100A00011 /* RoTypeVoiceServer.swift in Sources */,
+				C10A00012F20000100A00012 /* VoiceCommitTicket.swift in Sources */,
+				C10A00012F20000100A00013 /* VoiceInsertionPolicy.swift in Sources */,
 				B39771252BED899F0093A49B /* SquirrelConfig.swift in Sources */,
 				B397712F2BEECBED0093A49B /* Main.swift in Sources */,
 				B397712D2BEEB39D0093A49B /* InputSource.swift in Sources */,
@@ -624,7 +636,7 @@
 				CODE_SIGN_ENTITLEMENTS = resources/Squirrel.entitlements;
 				COMBINE_HIDPI_IMAGES = YES;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 38;
+				CURRENT_PROJECT_VERSION = 52;
 				MARKETING_VERSION = 0.0.1;
 				DEAD_CODE_STRIPPING = YES;
 				FRAMEWORK_SEARCH_PATHS = (
@@ -681,7 +693,7 @@
 				CLANG_ENABLE_OBJC_ARC = YES;
 				CODE_SIGN_ENTITLEMENTS = resources/Squirrel.entitlements;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 38;
+				CURRENT_PROJECT_VERSION = 52;
 				DEAD_CODE_STRIPPING = YES;
 				MARKETING_VERSION = 0.0.1;
 				FRAMEWORK_SEARCH_PATHS = (

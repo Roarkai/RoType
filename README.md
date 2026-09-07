@@ -1,5 +1,7 @@
 # 洛克输入法（RoType）
 
+[官网与下载](https://type.roarkist.com/) · [官网维护说明](website/README.md)
+
 洛克输入法是一款面向 macOS 的双向双语键盘输入法。Rime 负责中文与英文候选，后台服务使用 Apple Translation 异步生成动态翻译候选。
 
 本仓库同时维护基于 Squirrel 1.1.2 的 GPL v3 前端修改。设置入口直接出现在输入法菜单中；按需启动的设置 helper 与无 UI 翻译 worker 均内嵌在输入法 Bundle，不在 `/Applications` 安装独立 App，也不显示 Dock 图标。
@@ -16,11 +18,11 @@
 - 每页最多 5 个候选；译文不占候选编号，点击或按 Tab 直接上屏，无需再按回车。
 - 首次配置向导检查输入法是否真实接管键盘，并准备简体中文与英文语言包。
 
-产品不再包含语音功能、Python/MLX 运行时或模型下载入口。升级时停止并移除由 RoType 签名的旧语音 App，保留已下载的模型和历史数据。输入法、设置 helper 和翻译 worker 不申请麦克风或全局输入监控权限。
+本地语音使用独立、签名的原生 Swift / MLX 进程，默认 Qwen3-ASR 0.6B 8bit，可切换 1.7B 8bit。模型由用户另行下载，不包含在安装包内。Build 47 起，选中洛克后默认自动准备已下载模型，开关记住用户选择；加载模型不会开启麦克风。按住 Fn 才录音，松开后识别并安全填入，不自动发送。麦克风权限归属「洛克输入法」，辅助功能权限归属「洛克输入法设置」。旧 Python 语音链保持退休，升级仍保留用户数据和模型。
 
 任意短语的动态翻译当前使用 macOS 26 的无界面 `TranslationSession`；更早系统走静态双语热词分支，不发送动态翻译请求。词条未命中时明确提示不可用。密码框和 macOS Secure Input 不在支持范围内。
 
-本轮优化尚未发布安装包；静态匹配与提交逻辑已做隔离验证，macOS 14/15 实机与跨应用输入验收仍待完成。进度见 [整体优化计划](docs/architecture/optimization-plan.md)。
+自动化测试不等于真实麦克风、InputMethodKit 或跨应用输入验收。Build 52 已完成公证和本机安装：保留 44×32 像素底板，缩小 R 字母，与 A 的实机字高相差 1 像素，见 [发布记录](docs/architecture/release-0.0.1-build52.md)。官网当前下载仍为 Build 48。
 
 ## 环境
 
@@ -49,9 +51,9 @@ RoType 的方案、Lua 模块和预编译词典随签名输入法 Bundle 安装�
 open "dist/洛克输入法设置.app" --args --show-settings
 ```
 
-首次从输入法菜单打开设置时会显示配置向导，验证输入源并准备 Apple 中英翻译语言包。设置 helper 只在用户打开窗口时运行；独立的 `im.roarkai.inputmethod.Luoke.translation` Mach service 按需处理请求。每个请求带有随机 Rime session token 和单调 generation，旧任务会被取消，连接中断后会自动重建。worker 按签名身份区分主输入法和设置 helper：只有主输入法可以翻译，只有设置 helper 可以查询由主输入法记录的真实按键 generation；分布式通知只用于触发重新查询，不能直接提供验证结果。Secure Input 启用时不会请求翻译或写入响应缓存。翻译响应由当前 `SquirrelInputController` 校验会话快照并更新独立翻译栏，不重排 Rime 候选，不写响应文件或模拟系统按键。
+首次从输入法菜单打开设置时会显示配置向导，验证输入源并准备 Apple 中英翻译语言包。设置 helper 可由选中输入法在后台启动，不抢焦点；只有用户打开设置时才显示窗口。独立的 `im.roarkai.inputmethod.Luoke.translation` Mach service 按需处理请求。每个请求带有随机 Rime session token 和单调 generation，旧任务会被取消，连接中断后会自动重建。worker 按签名身份区分主输入法和设置 helper：只有主输入法可以翻译，只有设置 helper 可以查询由主输入法记录的真实按键 generation；分布式通知只用于触发重新查询，不能直接提供验证结果。Secure Input 启用时不会请求翻译或写入响应缓存。翻译响应由当前 `SquirrelInputController` 校验会话快照并更新独立翻译栏，不重排 Rime 候选，不写响应文件或模拟系统按键。
 
-安装器不把注销设为正常切换依赖。它会即时执行并验证公开的 `register -> enable -> select`；若当前登录会话没有形成可验证状态，系统 payload 仍保留，安装器会写入 `input-source-setup-required` 并打开设置向导，由用户完成菜单选择和真实键盘输入验证。系统级 LaunchAgent 会为以后登录的用户自动加载，升级时也会更新所有当前活跃 GUI session，但不会替其他用户强制切换输入源。
+安装器只注册输入法元数据，不静默启用、选择或移除输入源。首次添加通过系统「键盘」设置完成，再由用户选择洛克并进行真实试打。升级保留其他输入法、个人学习数据和模型，不批量重置 HIToolbox 或系统权限。
 
 ## 构建发布安装包
 
@@ -102,7 +104,7 @@ ROTYPE_SQUIRREL_APP="/path/to/current-fixture.app" ./scripts/test-rime-deploy.sh
 
 ## 当前非目标
 
-- 语音录音、ASR、语音模型管理
+- 云端语音识别、免提录音、自动发送与失败录音的持久恢复
 - macOS 14-15 的 CTranslate2 + OPUS-MT 本地翻译兜底
 - 小鹤以外的其他双拼方案
 - LLM 润色和云端翻译服务

@@ -59,7 +59,7 @@ if grep -q 'staging_dir/Applications/洛克输入法.app' "$repo_dir/scripts/bui
   exit 1
 fi
 grep -q 'generate-menu-icon.swift' "$repo_dir/scripts/build-installer.sh"
-grep -q 'rotypeMenu16Template.pdf' "$repo_dir/scripts/build-installer.sh"
+grep -q 'rotypeABC22SmallRTemplate.pdf' "$repo_dir/scripts/build-installer.sh"
 grep -q 'staged_input_method/Contents/SharedSupport' "$repo_dir/scripts/build-installer.sh"
 grep -q 'rm -rf "$staged_input_method/Contents/SharedSupport"' "$repo_dir/scripts/build-installer.sh"
 grep -q 'luna_pinyin.dict.yaml' "$repo_dir/scripts/build-installer.sh"
